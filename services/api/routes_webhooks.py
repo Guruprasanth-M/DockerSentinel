@@ -46,10 +46,10 @@ def _read_config() -> Dict[str, Any]:
         with open(WEBHOOKS_FILE, "r") as f:
             return yaml.safe_load(f) or {}
     except FileNotFoundError:
-        return {"version": "0.1", "webhook_secret": "", "webhooks": []}
+        return {"version": "v0.1", "webhook_secret": "", "webhooks": []}
     except Exception as e:
         log.error("webhook_config_read_error", error=str(e))
-        return {"version": "0.1", "webhook_secret": "", "webhooks": []}
+        return {"version": "v0.1", "webhook_secret": "", "webhooks": []}
 
 
 def _write_config(config: Dict[str, Any]) -> None:

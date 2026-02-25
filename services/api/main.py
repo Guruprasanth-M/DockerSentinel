@@ -75,7 +75,7 @@ async def lifespan(application: FastAPI):
 # ─── FastAPI app ───
 app = FastAPI(
     title="Docker Sentinel API",
-    version="0.1.0",
+    version="v0.1",
     docs_url="/docs" if _ENABLE_DOCS else None,  # M9: disabled by default
     redoc_url=None,
     openapi_url="/openapi.json" if _ENABLE_DOCS else None,  # P1: hide schema in prod
