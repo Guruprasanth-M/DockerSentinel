@@ -1,0 +1,51 @@
+<div class="page-enter">
+    <div class="page-head">
+        <h2 class="page-title">Log Explorer</h2>
+        <div class="page-head-actions">
+            <span class="text-muted text-sm" id="logCount">--</span>
+            <button class="btn btn-primary btn-sm" id="logsRefresh">Refresh</button>
+        </div>
+    </div>
+
+    <div class="toolbar">
+        <div class="form-group" style="flex:2">
+            <label class="form-label">Search</label>
+            <input type="text" id="logSearch" class="form-input" placeholder="Text or /regex/ search across log messages..." autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Level</label>
+            <select id="logLevel" class="form-input">
+                <option value="">All</option>
+                <option value="info">Info</option>
+                <option value="warning">Warning</option>
+                <option value="error">Error</option>
+                <option value="critical">Critical</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Source</label>
+            <select id="logSource" class="form-input">
+                <option value="">All</option>
+                <option value="auth">Auth</option>
+                <option value="syslog">Syslog</option>
+                <option value="kern">Kernel</option>
+                <option value="docker">Docker</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Limit</label>
+            <select id="logLimit" class="form-input">
+                <option value="50">50</option>
+                <option value="100" selected>100</option>
+                <option value="200">200</option>
+                <option value="500">500</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="log-terminal" id="logTerminal">
+            Loading logs...
+        </div>
+    </div>
+</div>

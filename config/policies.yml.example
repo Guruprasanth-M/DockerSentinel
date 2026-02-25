@@ -1,0 +1,75 @@
+version: "0.1"
+
+# Policy Rules Configuration
+#
+# Policies define conditions under which alerts fire and actions trigger.
+# Hot-reload: Changes to this file are detected within 2 seconds (no restart needed).
+#
+# Policy Rule Schema:
+#   name:                     Unique policy identifier
+#   enabled:                  Whether rule is active (true/false)
+#   conditions:
+#     score_above:            ML anomaly score threshold (0.0 - 1.0)
+#     anomaly_type:           Type filter (brute_force, port_scan, ssh_failure, process_spike)
+#     repeated_within_seconds: Dedup window — must occur N times within this period
+#     min_occurrences:        Minimum count before firing
+#   action:                   Response action (block_ip, kill_process, alert_only)
+#   severity:                 Alert severity (low, medium, high, critical)
+#   notify:                   Whether to send webhook notifications (true/false)
+
+policies:
+  - name: brute_force_block
+    enabled: true
+    conditions:
+      score_above: 0.80
+      anomaly_type: brute_force
+      repeated_within_seconds: 60
+      min_occurrences: 3
+    action: block_ip
+    severity: high
+    notify: true
+
+  - name: port_scan_alert
+    enabled: true
+    conditions:
+      score_above: 0.65
+      anomaly_type: port_scan
+    action: alert_only
+    severity: medium
+    notify: true
+
+  - name: high_risk_alert
+    enabled: true
+    conditions:
+      score_above: 0.75
+    action: alert_only
+    severity: high
+    notify: true
+
+  - name: critical_threat
+    enabled: true
+    conditions:
+      score_above: 0.90
+    action: block_ip
+    severity: critical
+    notify: true
+
+  - name: ssh_anomaly
+    enabled: true
+    conditions:
+      score_above: 0.60
+      anomaly_type: ssh_failure
+      repeated_within_seconds: 30
+      min_occurrences: 5
+    action: alert_only
+    severity: medium
+    notify: true
+
+  - name: process_spike
+    enabled: true
+    conditions:
+      score_above: 0.70
+      anomaly_type: process_spike
+    action: alert_only
+    severity: medium
+    notify: false

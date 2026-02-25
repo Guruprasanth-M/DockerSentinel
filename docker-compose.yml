@@ -1,0 +1,363 @@
+# docker-compose.yml
+# Docker Sentinel v0.1
+
+name: sentinel
+
+networks:
+  sentinel-net:
+    driver: bridge
+
+volumes:
+  sentinel-redis-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/data/redis
+
+  sentinel-model-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/data/models
+
+  sentinel-audit-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/data/audit
+
+  sentinel-state-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/data/collector-state
+
+  sentinel-db-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/data/db
+
+services:
+
+
+  # ─── 9th Service: PostgreSQL Database ────────────────────
+
+  db:
+    image: postgres:16-alpine
+    container_name: sentinel-db
+    restart: unless-stopped
+    networks: [sentinel-net]
+    environment:
+      POSTGRES_DB: ${DB_NAME:-sentinel}
+      POSTGRES_USER: ${DB_USER:-sentinel}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-sentinel_secret}
+    volumes:
+      - sentinel-db-data:/var/lib/postgresql/data
+      - ./config/db_init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-sentinel} -d ${DB_NAME:-sentinel}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          memory: 128M
+
+
+  # Event bus and data persistence
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: sentinel-redis
+    restart: unless-stopped
+    networks: [sentinel-net]
+    volumes:
+      - sentinel-redis-data:/data
+      - ./config/redis.conf:/etc/redis/redis.conf:ro
+    command: redis-server /etc/redis/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-sentinel_redis_pass}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          memory: 128M
+
+
+  # Log, network, process collection
+
+  collectors:
+    build:
+      context: ./services/collectors
+      dockerfile: Dockerfile
+    image: sentinel-collectors:0.1.0
+    container_name: sentinel-collectors
+    restart: unless-stopped
+    networks: [sentinel-net]
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-sentinel_redis_pass}@redis:6379/0
+      - SENTINEL_CONFIG=/config/sentinel.yml
+      - HOST_LOGS_PATH=/host_logs
+      - SERVICE_NAME=collectors
+    volumes:
+      - /var/log:/host_logs:ro
+      - sentinel-state-data:/data/collector-state
+      - ./config:/config:ro
+      - ./scripts:/scripts:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,sys; sys.exit(0 if os.path.exists('/tmp/collectors_healthy') else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          memory: 64M
+
+
+  # Anomaly detection and baseline
+
+  ml:
+    build:
+      context: ./services/ml
+      dockerfile: Dockerfile
+    image: sentinel-ml:0.1.0
+    container_name: sentinel-ml
+    restart: unless-stopped
+    networks: [sentinel-net]
+    depends_on:
+      redis:
+        condition: service_healthy
+      collectors:
+        condition: service_started
+    environment:
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-sentinel_redis_pass}@redis:6379/0
+      - SENTINEL_CONFIG=/config/sentinel.yml
+      - SERVICE_NAME=ml
+    volumes:
+      - sentinel-model-data:/data/models
+      - ./config:/config:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,sys; sys.exit(0 if os.path.exists('/tmp/ml_healthy') else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          memory: 128M
+
+
+  # Rule-based alert evaluation
+
+  policy:
+    build:
+      context: ./services/policy
+      dockerfile: Dockerfile
+    image: sentinel-policy:0.1.0
+    container_name: sentinel-policy
+    restart: unless-stopped
+    networks: [sentinel-net]
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-sentinel_redis_pass}@redis:6379/0
+      - SENTINEL_CONFIG=/config/sentinel.yml
+      - SERVICE_NAME=policy
+    volumes:
+      - ./config:/config:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,sys; sys.exit(0 if os.path.exists('/tmp/policy_healthy') else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          memory: 64M
+
+
+  # Automated response actions (C1/C2: pid host + nsenter for host iptables)
+
+  actions:
+    build:
+      context: ./services/actions
+      dockerfile: Dockerfile
+    image: sentinel-actions:0.1.0
+    container_name: sentinel-actions
+    restart: unless-stopped
+    networks: [sentinel-net]
+    pid: "host"
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-sentinel_redis_pass}@redis:6379/0
+      - SENTINEL_CONFIG=/config/sentinel.yml
+      - SERVICE_NAME=actions
+    volumes:
+      - ./config:/config:ro
+      - sentinel-audit-data:/data/audit
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_PTRACE
+      - SYS_ADMIN
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,sys; sys.exit(0 if os.path.exists('/tmp/actions_healthy') else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          memory: 64M
+
+
+  # Alert notification delivery
+
+  webhooks:
+    build:
+      context: ./services/webhooks
+      dockerfile: Dockerfile
+    image: sentinel-webhooks:0.1.0
+    container_name: sentinel-webhooks
+    restart: unless-stopped
+    networks: [sentinel-net]
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-sentinel_redis_pass}@redis:6379/0
+      - SENTINEL_CONFIG=/config/sentinel.yml
+      - SERVICE_NAME=webhooks
+    volumes:
+      - ./config:/config:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,sys; sys.exit(0 if os.path.exists('/tmp/webhooks_healthy') else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          memory: 64M
+
+
+  # REST + WebSocket
+
+  api:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile
+    image: sentinel-api:0.1.0
+    container_name: sentinel-api
+    restart: unless-stopped
+    networks: [sentinel-net]
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+      collectors:
+        condition: service_started
+    environment:
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-sentinel_redis_pass}@redis:6379/0
+      - SENTINEL_CONFIG=/config/sentinel.yml
+      - SENTINEL_API_TOKEN=${SENTINEL_API_TOKEN}
+      - SERVICE_NAME=api
+      - DB_URL=postgresql+asyncpg://${DB_USER:-sentinel}:${DB_PASSWORD:-sentinel_secret}@db:5432/${DB_NAME:-sentinel}
+    volumes:
+      - sentinel-audit-data:/data/audit
+      - ./config:/config:ro
+      - /proc:/host_proc:ro
+      - /sys:/host_sys:ro
+      - /etc/os-release:/host_etc/os-release:ro
+      - /etc/hostname:/host_etc/hostname:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          memory: 128M
+
+
+  # nginx serving UI + reverse proxy
+
+  dashboard:
+    build:
+      context: ./services/dashboard
+      dockerfile: Dockerfile
+    image: sentinel-dashboard:0.1.0
+    container_name: sentinel-dashboard
+    restart: unless-stopped
+    networks: [sentinel-net]
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "0.0.0.0:8080:8080"
+    volumes:
+      - ./services/dashboard/nginx.conf:/etc/nginx/nginx.conf:ro
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
+        reservations:
+          memory: 32M

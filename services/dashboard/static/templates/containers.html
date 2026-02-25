@@ -1,0 +1,28 @@
+<div class="page-enter">
+    <div class="page-head">
+        <h2 class="page-title">Docker Containers</h2>
+        <div class="flex items-center gap-3">
+            <span class="text-xs text-muted mono" id="containerLastUpdate">Updated --:--:--</span>
+            <button class="btn btn-sm" id="containerRefresh">Refresh</button>
+        </div>
+    </div>
+
+    <div class="grid grid-3 mb-4">
+        <div class="stat-card stat-card--green">
+            <div class="stat-value" id="totalRunning">0</div>
+            <div class="stat-label">Running</div>
+        </div>
+        <div class="stat-card stat-card--cyan">
+            <div class="stat-value" id="totalCpu">0%</div>
+            <div class="stat-label">Total CPU</div>
+        </div>
+        <div class="stat-card stat-card--blue">
+            <div class="stat-value" id="totalMem">0 MB</div>
+            <div class="stat-label">Total Memory</div>
+        </div>
+    </div>
+
+    <div class="containers-grid" id="containersGrid">
+        <div class="empty-placeholder"><span class="text-muted">Loading containers...</span></div>
+    </div>
+</div>

@@ -1,0 +1,119 @@
+:root {
+    /* Background layers - translucent glass */
+    --bg-root: #1a1a2e;
+    --bg-primary: rgba(30, 30, 50, 0.85);
+    --bg-secondary: rgba(40, 40, 65, 0.75);
+    --bg-surface: rgba(50, 50, 80, 0.55);
+    --bg-elevated: rgba(60, 60, 95, 0.6);
+    --bg-overlay: rgba(10, 10, 25, 0.75);
+    --bg-input: rgba(35, 35, 60, 0.7);
+
+    /* Glass effect */
+    --glass-blur: 20px;
+    --glass-border: rgba(255, 255, 255, 0.12);
+    --glass-highlight: rgba(255, 255, 255, 0.06);
+
+    /* Apple system colors */
+    --blue: #007AFF;
+    --blue-soft: #5AC8FA;
+    --green: #34C759;
+    --green-soft: #30D158;
+    --green-dim: #248A3D;
+    --cyan: #5AC8FA;
+    --cyan-soft: #70D7FF;
+    --cyan-dim: #0A84FF;
+    --purple: #AF52DE;
+    --indigo: #5856D6;
+    --amber: #FF9F0A;
+    --orange: #FF9500;
+    --red: #FF453A;
+    --red-soft: #FF6961;
+    --pink: #FF2D55;
+    --teal: #64D2FF;
+    --mint: #63E6BE;
+
+    /* Semantic colors */
+    --color-success: #34C759;
+    --color-warning: #FF9F0A;
+    --color-danger: #FF453A;
+    --color-info: #007AFF;
+    --color-accent: #007AFF;
+
+    /* Text - high contrast for readability at low brightness */
+    --text-primary: #FFFFFF;
+    --text-secondary: rgba(255, 255, 255, 0.75);
+    --text-muted: rgba(255, 255, 255, 0.45);
+    --text-inverse: #000000;
+    --text-link: #5AC8FA;
+    --text-link-hover: #70D7FF;
+
+    /* Borders */
+    --border-default: rgba(255, 255, 255, 0.12);
+    --border-subtle: rgba(255, 255, 255, 0.06);
+    --border-strong: rgba(255, 255, 255, 0.2);
+    --border-focus: #007AFF;
+    --border-glow: rgba(0, 122, 255, 0.35);
+
+    /* Typography */
+    --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "Segoe UI", sans-serif;
+    --font-mono: "SF Mono", "Fira Code", "JetBrains Mono", "Cascadia Code", monospace;
+    --font-size-xs: 0.6875rem;
+    --font-size-sm: 0.8125rem;
+    --font-size-md: 0.9375rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.5rem;
+    --font-size-2xl: 2rem;
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+    --line-height-tight: 1.25;
+    --line-height-normal: 1.5;
+    --line-height-relaxed: 1.75;
+
+    /* Spacing */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+
+    /* Radius - rounder like Apple */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 20px;
+    --radius-full: 9999px;
+
+    /* Shadows - softer, more diffused */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2), 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.25), 0 0 1px rgba(255, 255, 255, 0.06) inset;
+    --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.35), 0 0 1px rgba(255, 255, 255, 0.08) inset;
+    --shadow-glow-blue: 0 0 20px rgba(0, 122, 255, 0.2);
+    --shadow-glow-green: 0 0 20px rgba(52, 199, 89, 0.2);
+    --shadow-glow-red: 0 0 20px rgba(255, 69, 58, 0.2);
+
+    /* Layout */
+    --header-h: 52px;
+    --sidebar-w: 220px;
+    --footer-h: 36px;
+    --content-max-w: 1440px;
+
+    /* Transitions */
+    --ease-fast: 150ms cubic-bezier(0.25, 0.1, 0.25, 1);
+    --ease-normal: 250ms cubic-bezier(0.25, 0.1, 0.25, 1);
+    --ease-slow: 450ms cubic-bezier(0.25, 0.1, 0.25, 1);
+
+    /* Z-index layers */
+    --z-base: 1;
+    --z-sidebar: 100;
+    --z-header: 200;
+    --z-overlay: 500;
+    --z-modal: 1000;
+    --z-toast: 2000;
+    --z-scanlines: 9000;
+}

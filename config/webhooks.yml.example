@@ -1,0 +1,53 @@
+version: "0.1"
+
+# Webhook Configuration
+#
+# Configure external notification endpoints for security alerts.
+# Webhooks fire when policy engine generates alerts with notify: true.
+#
+# Retry Logic: Exponential backoff 1s → 2s → 4s → 8s → 16s → dead letter queue
+# Failed webhooks go to sentinel:webhooks:failed Redis stream (max 1,000 entries).
+#
+# Payload Signing: When sign_payloads is true, requests include:
+#   X-Sentinel-Signature: sha256=HMAC(webhook_secret, raw_body)
+#
+# Supported event types:
+#   - attack_detected    : ML score exceeds critical threshold
+#   - anomaly_detected   : ML score exceeds alert threshold
+#   - action_taken       : An automated action was executed (block, kill)
+#   - critical_alert     : Critical severity policy fired
+
+# Secret used for HMAC-SHA256 payload signing
+webhook_secret: "change-this-to-a-secure-secret"
+
+webhooks:
+  # Slack incoming webhook
+  - name: slack_security
+    url: https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+    events: [attack_detected, critical_alert]
+    enabled: false
+    sign_payloads: true
+
+  # Discord webhook
+  - name: discord_alerts
+    url: https://discord.com/api/webhooks/YOUR/WEBHOOK
+    events: [attack_detected, anomaly_detected, critical_alert]
+    enabled: false
+    sign_payloads: false
+
+  # Custom SIEM or log aggregation endpoint
+  - name: custom_siem
+    url: http://your-siem-server:9000/sentinel
+    events: [attack_detected, anomaly_detected, action_taken, critical_alert]
+    enabled: false
+    sign_payloads: true
+    headers:
+      Authorization: "Bearer YOUR_SIEM_TOKEN"
+      Content-Type: "application/json"
+
+  # Generic HTTP webhook (e.g., PagerDuty, Opsgenie, email relay)
+  - name: email_alerts
+    url: http://your-email-relay:3000/send
+    events: [critical_alert]
+    enabled: false
+    sign_payloads: false

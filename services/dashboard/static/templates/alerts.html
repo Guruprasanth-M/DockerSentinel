@@ -1,0 +1,66 @@
+<div class="page-enter">
+    <div class="page-head">
+        <h2 class="page-title">Security Alerts</h2>
+        <button class="btn btn-primary btn-sm" id="alertRefresh">Refresh</button>
+    </div>
+
+    <div class="filter-bar">
+        <div class="form-group">
+            <label class="form-label">Severity</label>
+            <select id="alertSeverity" class="form-input">
+                <option value="">All</option>
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+                <option value="info">Info</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Time Range</label>
+            <select id="alertTimeRange" class="form-input">
+                <option value="" selected>All Time</option>
+                <option value="300">Last 5 min</option>
+                <option value="900">Last 15 min</option>
+                <option value="3600">Last 1 hour</option>
+                <option value="86400">Last 24 hours</option>
+            </select>
+        </div>
+        <div class="form-group" style="flex:1; min-width:200px;">
+            <label class="form-label">Search</label>
+            <input type="text" id="alertSearch" class="form-input" placeholder="Filter alerts...">
+        </div>
+    </div>
+
+    <div class="grid grid-4 mb-4">
+        <div class="stat-card stat-card--red">
+            <div class="stat-value" id="aCritical">0</div>
+            <div class="stat-label">Critical</div>
+        </div>
+        <div class="stat-card stat-card--amber">
+            <div class="stat-value" id="aHigh">0</div>
+            <div class="stat-label">High</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="aMedium">0</div>
+            <div class="stat-label">Medium</div>
+        </div>
+        <div class="stat-card stat-card--green">
+            <div class="stat-value" id="aTotal">0</div>
+            <div class="stat-label">Total</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Alert Timeline</span>
+            <span class="card-subtitle" id="alertInfo">--</span>
+        </div>
+        <div class="alert-timeline" id="alertTimeline">
+            <div class="empty-state">
+                <div class="empty-icon">&#9872;</div>
+                <div class="empty-text">Loading alerts...</div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,79 @@
+<div class="page-enter">
+    <div class="page-head">
+        <h2 class="page-title">Actions</h2>
+    </div>
+
+    <div class="grid grid-2 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Block IP Address</span>
+            </div>
+            <div class="action-form">
+                <div class="form-group">
+                    <label class="form-label">IP Address</label>
+                    <input type="text" id="blockIp" class="form-input" placeholder="192.168.1.100">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Duration</label>
+                    <select id="blockDuration" class="form-input">
+                        <option value="5">5 minutes</option>
+                        <option value="15">15 minutes</option>
+                        <option value="30" selected>30 minutes</option>
+                        <option value="60">1 hour</option>
+                        <option value="1440">24 hours</option>
+                        <option value="0">Permanent</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Reason</label>
+                    <input type="text" id="blockReason" class="form-input" placeholder="Suspicious activity">
+                </div>
+                <button class="btn btn-danger action-submit" id="blockBtn">Block IP</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Kill Process</span>
+            </div>
+            <div class="action-form">
+                <div class="form-group">
+                    <label class="form-label">Process ID (PID)</label>
+                    <input type="number" id="killPid" class="form-input" placeholder="12345" min="2">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Reason</label>
+                    <input type="text" id="killReason" class="form-input" placeholder="Rogue process">
+                </div>
+                <div class="action-info">
+                    <span>Protected processes (systemd, sshd, dockerd) are blocked by the safety whitelist.</span>
+                </div>
+                <button class="btn btn-danger action-submit" id="killBtn">Kill Process</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Action History</span>
+            <button class="btn btn-sm" id="actionRefresh">Refresh</button>
+        </div>
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Action</th>
+                        <th>Target</th>
+                        <th>Status</th>
+                        <th>Triggered By</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody id="actionBody">
+                    <tr><td colspan="6" class="text-center text-muted">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,138 @@
+<div class="page-enter">
+    <div class="page-head">
+        <h2 class="page-title">System Diagnostics</h2>
+        <div class="flex items-center gap-3">
+            <span class="mono text-xs" id="diagServerTime">--</span>
+            <button class="btn btn-primary btn-sm" id="diagRunAll">Run All Checks</button>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title">Server Clock</span>
+            <span class="badge badge--info" id="diagTimezone">--</span>
+        </div>
+        <div class="grid grid-4">
+            <div class="stat-card">
+                <div class="stat-value mono" id="diagDate">--</div>
+                <div class="stat-label">Date</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value mono" id="diagTime">--:--:--</div>
+                <div class="stat-label">Time</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value mono" id="diagUptime">--</div>
+                <div class="stat-label">Browser Uptime</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value mono" id="diagApiUptime">--</div>
+                <div class="stat-label">API Uptime</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-4 mb-4">
+        <div class="stat-card" id="diagPassCard">
+            <div class="stat-value" id="diagPassCount">0</div>
+            <div class="stat-label">Passed</div>
+        </div>
+        <div class="stat-card stat-card--amber" id="diagWarnCard">
+            <div class="stat-value" id="diagWarnCount">0</div>
+            <div class="stat-label">Warnings</div>
+        </div>
+        <div class="stat-card stat-card--red" id="diagFailCard">
+            <div class="stat-value" id="diagFailCount">0</div>
+            <div class="stat-label">Failed</div>
+        </div>
+        <div class="stat-card stat-card--cyan">
+            <div class="stat-value" id="diagTotalCount">0</div>
+            <div class="stat-label">Total Checks</div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title">Frontend Resources</span>
+            <span class="badge badge--info" id="diagFrontendStatus">checking</span>
+        </div>
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th>Resource</th><th>Type</th><th>Status</th><th>Details</th><th>Fix</th></tr></thead>
+                <tbody id="diagFrontendBody">
+                    <tr><td colspan="5" class="text-center text-muted">Running checks...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title">API Endpoints</span>
+            <span class="badge badge--info" id="diagApiStatus">checking</span>
+        </div>
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th>Endpoint</th><th>Method</th><th>Status</th><th>Response Time</th><th>Fix</th></tr></thead>
+                <tbody id="diagApiBody">
+                    <tr><td colspan="5" class="text-center text-muted">Running checks...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title">Docker Services</span>
+            <span class="badge badge--info" id="diagServiceStatus">checking</span>
+        </div>
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th>Service</th><th>Expected</th><th>Actual</th><th>Status</th><th>Fix</th></tr></thead>
+                <tbody id="diagServiceBody">
+                    <tr><td colspan="5" class="text-center text-muted">Running checks...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title">WebSocket Connection</span>
+            <span class="badge badge--info" id="diagWsStatus">checking</span>
+        </div>
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th>Check</th><th>Status</th><th>Details</th><th>Fix</th></tr></thead>
+                <tbody id="diagWsBody">
+                    <tr><td colspan="4" class="text-center text-muted">Running checks...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title">Data Pipeline</span>
+            <span class="badge badge--info" id="diagDataStatus">checking</span>
+        </div>
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th>Check</th><th>Status</th><th>Details</th><th>Fix</th></tr></thead>
+                <tbody id="diagDataBody">
+                    <tr><td colspan="4" class="text-center text-muted">Running checks...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Diagnostic Log</span>
+            <button class="btn btn-sm" id="diagClearLog">Clear</button>
+        </div>
+        <div class="log-terminal" id="diagLog" style="max-height:300px; overflow-y:auto;">
+            <div class="log-line text-muted">Waiting for diagnostics to run...</div>
+        </div>
+    </div>
+</div>

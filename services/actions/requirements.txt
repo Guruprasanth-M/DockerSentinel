@@ -1,0 +1,3 @@
+redis[hiredis]>=5.0.0
+structlog>=23.0.0
+pyyaml>=6.0.0

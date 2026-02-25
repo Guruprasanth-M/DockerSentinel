@@ -1,0 +1,51 @@
+# ─── Runtime data (persisted on host, never committed) ───
+data/
+backups/
+
+# ─── Sensitive configuration ───
+config/sentinel.yml
+
+# ─── Environment file with secrets ───
+.env
+
+# ─── Python ───
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+ENV/
+
+# ─── IDE ───
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ─── OS ───
+.DS_Store
+Thumbs.db
+
+# ─── Docker ───
+*.log
+
+# ─── Coverage ───
+htmlcov/
+.coverage
+.coverage.*
+.pytest_cache/
+
+# ─── MaxMind GeoIP ───
+data/geoip/
+
+# ─── Node (vendor libs if any) ───
+node_modules/
+
+# Public repo clone
+.public/

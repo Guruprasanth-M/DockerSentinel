@@ -1,0 +1,79 @@
+<div class="page-enter">
+    <div class="page-head">
+        <h2 class="page-title">Metrics</h2>
+        <div class="flex items-center gap-3">
+            <span class="text-xs text-muted mono" id="metricsTimestamp">--</span>
+            <button class="btn btn-sm" id="metricsRefresh">Refresh</button>
+        </div>
+    </div>
+
+    <div class="grid grid-4 mb-6">
+        <div class="stat-card">
+            <div class="stat-value mono" id="mCpuPct">--%</div>
+            <div class="stat-label">CPU Usage</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value mono" id="mMemUsed">-- MB</div>
+            <div class="stat-label">Memory Used</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value mono" id="mDiskPct">--%</div>
+            <div class="stat-label">Disk Usage</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value mono" id="mLoadAvg">--</div>
+            <div class="stat-label">Load Average</div>
+        </div>
+    </div>
+
+    <div class="grid grid-2">
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">CPU Over Time</span>
+            </div>
+            <div class="chart-box" id="mCpuChart"></div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Memory Over Time</span>
+            </div>
+            <div class="chart-box" id="mMemChart"></div>
+        </div>
+    </div>
+
+    <div class="grid grid-2">
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Network I/O</span>
+            </div>
+            <div class="chart-box" id="mNetChart"></div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Anomaly Scores</span>
+            </div>
+            <div class="chart-box" id="mScoreChart"></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Raw Metrics</span>
+        </div>
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Value</th>
+                        <th>Unit</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="metricsTable">
+                    <tr><td colspan="4" class="text-center text-muted">Loading metrics...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

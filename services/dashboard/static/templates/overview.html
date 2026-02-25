@@ -1,0 +1,178 @@
+<div class="page-enter">
+    <div class="page-head">
+        <h2 class="page-title">System Overview</h2>
+        <div class="flex items-center gap-3">
+            <span class="text-xs text-muted mono" id="lastUpdate">Updated --:--:--</span>
+            <button class="btn btn-sm" id="overviewRefresh">Refresh</button>
+        </div>
+    </div>
+
+    <!-- Top Stats Row -->
+    <div class="grid grid-4 mb-6">
+        <div class="stat-card stat-card--cyan">
+            <div class="stat-value" id="riskScore">0</div>
+            <div class="stat-label">Risk Score</div>
+        </div>
+        <div class="stat-card stat-card--green">
+            <div class="stat-value" id="servicesUp">0/9</div>
+            <div class="stat-label">Services Online</div>
+        </div>
+        <div class="stat-card stat-card--amber">
+            <div class="stat-value" id="alertCount">0</div>
+            <div class="stat-label">Active Alerts</div>
+        </div>
+        <div class="stat-card stat-card--red">
+            <div class="stat-value" id="anomalyCount">0</div>
+            <div class="stat-label">Anomalies (24h)</div>
+        </div>
+    </div>
+
+    <!-- System Info Bar -->
+    <div class="system-info-bar mb-4" id="systemInfoBar">
+        <div class="sys-chip">
+            <svg viewBox="0 0 16 16" width="14" height="14"><rect x="3" y="3" width="10" height="10" rx="2" stroke="currentColor" fill="none" stroke-width="1.2"/><circle cx="8" cy="8" r="2" fill="currentColor" opacity="0.6"/></svg>
+            <span id="sysHostname">--</span>
+        </div>
+        <div class="sys-chip">
+            <svg viewBox="0 0 16 16" width="14" height="14"><path d="M2 4h12v8H2z" stroke="currentColor" fill="none" stroke-width="1.2" rx="1"/><path d="M5 12v2M11 12v2M4 14h8" stroke="currentColor" stroke-width="1.2"/></svg>
+            <span id="sysOS">--</span>
+        </div>
+        <div class="sys-chip">
+            <svg viewBox="0 0 16 16" width="14" height="14"><path d="M8 1v14M1 8h14" stroke="currentColor" stroke-width="1.2" opacity="0.5"/><circle cx="8" cy="8" r="6" stroke="currentColor" fill="none" stroke-width="1.2"/></svg>
+            <span id="sysKernel">--</span>
+        </div>
+        <div class="sys-chip">
+            <svg viewBox="0 0 16 16" width="14" height="14"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M8 5v3.5l2.5 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            <span id="sysUptime">--</span>
+        </div>
+        <div class="sys-chip">
+            <svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 3h10v10H3z" stroke="currentColor" fill="none" stroke-width="1.2"/><path d="M6 1v4M10 1v4M6 11v4M10 11v4M1 6h4M1 10h4M11 6h4M11 10h4" stroke="currentColor" stroke-width="1"/></svg>
+            <span id="sysArch">--</span>
+        </div>
+        <div class="sys-chip">
+            <svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 8h2l2-4 2 8 2-4h2" stroke="currentColor" fill="none" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span><span id="sysProcs">0</span> procs / <span id="sysThreads">0</span> threads</span>
+        </div>
+    </div>
+
+    <!-- CPU Section -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title">
+                <svg class="section-icon" viewBox="0 0 16 16"><rect x="3" y="3" width="10" height="10" rx="2" stroke="currentColor" fill="none" stroke-width="1.2"/><rect x="5" y="5" width="6" height="6" rx="1" fill="currentColor" opacity="0.3"/><circle cx="8" cy="8" r="1.5" fill="currentColor"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2" stroke="currentColor" stroke-width="1"/></svg>
+                CPU
+            </span>
+            <span class="card-subtitle mono" id="cpuModel">--</span>
+        </div>
+        <div class="cpu-stats-row mb-3">
+            <div class="cpu-stat"><span class="cpu-stat-label">Usage</span><span class="cpu-stat-value text-cyan mono" id="cpuTotalPct">0%</span></div>
+            <div class="cpu-stat"><span class="cpu-stat-label">Cores</span><span class="cpu-stat-value mono" id="cpuCores">0 / 0</span></div>
+            <div class="cpu-stat"><span class="cpu-stat-label">Frequency</span><span class="cpu-stat-value mono" id="cpuFreq">0 MHz</span></div>
+            <div class="cpu-stat"><span class="cpu-stat-label">L1d Cache</span><span class="cpu-stat-value mono" id="cpuL1d">--</span></div>
+            <div class="cpu-stat"><span class="cpu-stat-label">L2 Cache</span><span class="cpu-stat-value mono" id="cpuL2">--</span></div>
+            <div class="cpu-stat"><span class="cpu-stat-label">L3 Cache</span><span class="cpu-stat-value mono" id="cpuL3">--</span></div>
+        </div>
+        <div class="cpu-cores-grid" id="cpuCoresGrid"></div>
+        <div class="grid grid-2 mt-4">
+            <div class="chart-box" id="cpuChart"></div>
+            <div class="chart-box" id="loadChart"></div>
+        </div>
+    </div>
+
+    <!-- Memory Section -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title">
+                <svg class="section-icon" viewBox="0 0 16 16"><rect x="2" y="4" width="12" height="8" rx="1.5" stroke="currentColor" fill="none" stroke-width="1.2"/><rect x="4" y="6" width="2" height="4" rx="0.5" fill="currentColor" opacity="0.5"/><rect x="7" y="6" width="2" height="4" rx="0.5" fill="currentColor" opacity="0.5"/><rect x="10" y="6" width="2" height="4" rx="0.5" fill="currentColor" opacity="0.3"/></svg>
+                Memory
+            </span>
+            <span class="card-subtitle mono" id="memSummary">-- / --</span>
+        </div>
+        <div class="mem-visual mb-3">
+            <div class="mem-bar-container">
+                <div class="mem-bar-segment mem-used" id="memUsedBar" style="width:0%"></div>
+                <div class="mem-bar-segment mem-cached" id="memCachedBar" style="width:0%"></div>
+                <div class="mem-bar-segment mem-buffers" id="memBuffersBar" style="width:0%"></div>
+            </div>
+            <div class="mem-legend">
+                <span class="mem-legend-item"><span class="mem-dot mem-dot--used"></span>Used</span>
+                <span class="mem-legend-item"><span class="mem-dot mem-dot--cached"></span>Cached</span>
+                <span class="mem-legend-item"><span class="mem-dot mem-dot--buffers"></span>Buffers</span>
+                <span class="mem-legend-item"><span class="mem-dot mem-dot--free"></span>Available</span>
+            </div>
+        </div>
+        <div class="mem-stats-grid">
+            <div class="mem-stat"><span class="mem-stat-label">Used</span><span class="mem-stat-value mono" id="memUsed">--</span></div>
+            <div class="mem-stat"><span class="mem-stat-label">Available</span><span class="mem-stat-value mono" id="memAvail">--</span></div>
+            <div class="mem-stat"><span class="mem-stat-label">Cached</span><span class="mem-stat-value mono" id="memCached">--</span></div>
+            <div class="mem-stat"><span class="mem-stat-label">Buffers</span><span class="mem-stat-value mono" id="memBuffers">--</span></div>
+            <div class="mem-stat"><span class="mem-stat-label">Active</span><span class="mem-stat-value mono" id="memActive">--</span></div>
+            <div class="mem-stat"><span class="mem-stat-label">Inactive</span><span class="mem-stat-value mono" id="memInactive">--</span></div>
+            <div class="mem-stat"><span class="mem-stat-label">Swap Used</span><span class="mem-stat-value mono" id="memSwapUsed">--</span></div>
+            <div class="mem-stat"><span class="mem-stat-label">Swap Total</span><span class="mem-stat-value mono" id="memSwapTotal">--</span></div>
+            <div class="mem-stat"><span class="mem-stat-label">Committed</span><span class="mem-stat-value mono" id="memCommitted">--</span></div>
+            <div class="mem-stat"><span class="mem-stat-label">Slab</span><span class="mem-stat-value mono" id="memSlab">--</span></div>
+            <div class="mem-stat"><span class="mem-stat-label">Page Tables</span><span class="mem-stat-value mono" id="memPageTables">--</span></div>
+            <div class="mem-stat"><span class="mem-stat-label">Mapped</span><span class="mem-stat-value mono" id="memMapped">--</span></div>
+        </div>
+        <div class="chart-box mt-4" id="memChart"></div>
+    </div>
+
+    <!-- Disk Section -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title">
+                <svg class="section-icon" viewBox="0 0 16 16"><ellipse cx="8" cy="12" rx="6" ry="2.5" stroke="currentColor" fill="none" stroke-width="1.2"/><ellipse cx="8" cy="8" rx="6" ry="2.5" stroke="currentColor" fill="none" stroke-width="1.2"/><ellipse cx="8" cy="4" rx="6" ry="2.5" stroke="currentColor" fill="none" stroke-width="1.2"/><path d="M2 4v8M14 4v8" stroke="currentColor" stroke-width="1.2"/></svg>
+                Disk
+            </span>
+        </div>
+        <div class="disk-cards" id="diskCards">
+            <div class="empty-placeholder"><span class="text-muted text-sm">Loading disk information...</span></div>
+        </div>
+    </div>
+
+    <!-- Network Section -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <span class="card-title">
+                <svg class="section-icon" viewBox="0 0 16 16"><circle cx="8" cy="3" r="2" stroke="currentColor" fill="none" stroke-width="1.2"/><circle cx="3" cy="13" r="2" stroke="currentColor" fill="none" stroke-width="1.2"/><circle cx="13" cy="13" r="2" stroke="currentColor" fill="none" stroke-width="1.2"/><path d="M8 5v3M6 10l-2 2M10 10l2 2" stroke="currentColor" stroke-width="1.2"/></svg>
+                Network
+            </span>
+        </div>
+        <div class="net-cards" id="netCards">
+            <div class="empty-placeholder"><span class="text-muted text-sm">Loading network information...</span></div>
+        </div>
+        <div class="chart-box mt-4" id="netChart"></div>
+    </div>
+
+    <!-- Service Health + Docker Containers -->
+    <div class="grid grid-2 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Service Health</span>
+                <span class="card-subtitle" id="healthTimestamp">--</span>
+            </div>
+            <div class="health-grid" id="healthGrid"></div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Docker Containers</span>
+                <span class="card-subtitle mono" id="containerCount">0 running</span>
+            </div>
+            <div class="container-list" id="containerList">
+                <div class="empty-placeholder"><span class="text-muted text-sm">Loading containers...</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- GPU Section (hidden if no GPU) -->
+    <div class="card mb-4 hidden" id="gpuSection">
+        <div class="card-header">
+            <span class="card-title">
+                <svg class="section-icon" viewBox="0 0 16 16"><rect x="1" y="4" width="14" height="8" rx="1.5" stroke="currentColor" fill="none" stroke-width="1.2"/><path d="M4 7h3v2H4zM9 7h3v2H9z" fill="currentColor" opacity="0.3"/><path d="M3 4V2M7 4V2M11 4V2" stroke="currentColor" stroke-width="1"/></svg>
+                GPU
+            </span>
+        </div>
+        <div class="gpu-cards" id="gpuCards"></div>
+    </div>
+</div>

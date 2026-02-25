@@ -1,0 +1,39 @@
+# sentinel.yml.example
+# Copy to sentinel.yml: cp config/sentinel.yml.example config/sentinel.yml
+# Then update api_token with a generated token:
+#   python3 -c "import secrets; print(secrets.token_hex(32))"
+
+version: "0.1"
+
+sentinel:
+  # REQUIRED — Generate with: python3 -c "import secrets; print(secrets.token_hex(32))"
+  api_token: "CHANGE_THIS_TO_64_CHAR_HEX_STRING"
+
+  # Server identifier (shows in dashboard header)
+  host_name: "my-server"
+
+  # ML model settings
+  ml:
+    model_version: "v1_pretrained"
+    score_threshold_alert: 0.6
+    score_threshold_critical: 0.8
+
+  # Collector settings
+  collection:
+    interval_ms: 500
+    feature_window_seconds: 5
+    log_resume_enabled: true
+
+  # Stream retention limits
+  stream_limits:
+    logs: 50000
+    network: 50000
+    processes: 50000
+    features: 10000
+    scores: 10000
+    audit: 100000
+
+  # Logging
+  logging:
+    level: "INFO"
+    format: "json"

@@ -1,0 +1,54 @@
+<div class="page-enter">
+    <div class="page-head">
+        <h2 class="page-title">Processes</h2>
+        <button class="btn btn-primary btn-sm" id="procRefresh">Refresh</button>
+    </div>
+
+    <div class="process-controls">
+        <div class="form-group">
+            <label class="form-label">Sort by</label>
+            <select id="procSort" class="form-input">
+                <option value="cpu" selected>CPU</option>
+                <option value="memory">Memory</option>
+                <option value="pid">PID</option>
+                <option value="name">Name</option>
+                <option value="connections">Connections</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Limit</label>
+            <select id="procLimit" class="form-input">
+                <option value="25">25</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+                <option value="200">All (200)</option>
+            </select>
+        </div>
+        <label class="flex items-center gap-2 text-sm text-secondary" style="margin-top:18px;">
+            <input type="checkbox" id="procFlagged">
+            Flagged only
+        </label>
+        <span class="process-count" id="procCount">-- processes</span>
+    </div>
+
+    <div class="card">
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>PID</th>
+                        <th>Name</th>
+                        <th>CPU %</th>
+                        <th>Memory</th>
+                        <th>Connections</th>
+                        <th>Status</th>
+                        <th>Risk</th>
+                    </tr>
+                </thead>
+                <tbody id="procBody">
+                    <tr><td colspan="7" class="text-center text-muted">Loading processes...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
