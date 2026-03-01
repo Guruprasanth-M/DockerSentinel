@@ -5,6 +5,7 @@ import { formatTimeAgo } from '../helpers/format.js';
 import * as dialog from '../ui/dialog.js';
 
 let interval = null;
+const POLL_MS = 10000;
 
 export function init() {
     var blockBtn = qs('#blockBtn');
@@ -16,12 +17,23 @@ export function init() {
     if (refreshBtn) refreshBtn.addEventListener('click', refreshHistory);
 
     emitter.on('refresh', refreshHistory);
+    document.addEventListener('visibilitychange', _onVisChange);
 
     refreshHistory();
-    interval = setInterval(refreshHistory, 10000);
+    interval = setInterval(refreshHistory, POLL_MS);
+}
+
+function _onVisChange() {
+    if (document.hidden) {
+        if (interval) { clearInterval(interval); interval = null; }
+    } else {
+        refreshHistory();
+        if (!interval) interval = setInterval(refreshHistory, POLL_MS);
+    }
 }
 
 export function destroy() {
+    document.removeEventListener('visibilitychange', _onVisChange);
     emitter.off('refresh', refreshHistory);
     if (interval) { clearInterval(interval); interval = null; }
 }

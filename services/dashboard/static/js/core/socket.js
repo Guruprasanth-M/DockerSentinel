@@ -73,6 +73,10 @@ export function disconnect() {
     }
 }
 
+export function isConnected() {
+    return ws != null && ws.readyState === WebSocket.OPEN;
+}
+
 export function send(data) {
     if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify(data));

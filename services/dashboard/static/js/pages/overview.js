@@ -2,17 +2,25 @@
  * overview.js — Three-tier polling with smooth DOM updates
  *
  * TIER 1 — WebSocket push (2s): status_update → charts, risk score, alerts
- * TIER 2 — Fast poll  (3s):  /dashboard-fast → CPU %, memory %, net rates, disk I/O
+ * TIER 2 — Fast poll  (5s):  /dashboard-fast → CPU %, memory %, net rates, disk I/O
  * TIER 3 — Full poll  (60s): /dashboard-data → static info, containers, all details
  *
+ * /status fallback only polls when WebSocket is disconnected.
+ * All HTTP polling pauses when the browser tab is hidden.
  * Static data (hostname, OS, IP addresses, disk capacity) is fetched ONCE on init
- * and refreshed every 60s.  Dynamic data (CPU %, speeds) updates every 3s.
+ * and refreshed every 60s.  Dynamic data (CPU %, speeds) updates every 5s.
  * DOM updates use element reuse + CSS transitions for buttery smooth rendering.
  */
 import * as api from '../core/api.js';
 import * as emitter from '../core/emitter.js';
+import * as socket from '../core/socket.js';
 import { qs, setText, setHtml } from '../helpers/dom.js';
 import { formatPercent, formatBytesPerSec, formatClock } from '../helpers/format.js';
+
+/* ── Polling intervals (ms) ────────────────────────────── */
+const FAST_MS  = 5000;   // TIER 2: dynamic metrics
+const FULL_MS  = 60000;  // TIER 3: full data + containers
+const STATUS_MS = 15000; // /status fallback (only when WS offline)
 
 /* ── State ─────────────────────────────────────────────── */
 let fastInterval = null;    // 3s — dynamic metrics
@@ -57,15 +65,34 @@ export function init() {
     refreshFull();
     refreshStatus();
 
-    // TIER 2: fast dynamic poll every 3s
-    fastInterval = setInterval(refreshFast, 3000);
-    // TIER 3: full data + containers every 60s
-    fullInterval = setInterval(refreshFull, 60000);
-    // Status fallback (charts) every 15s
-    statusInterval = setInterval(refreshStatus, 15000);
+    // TIER 2: fast dynamic poll
+    fastInterval = setInterval(refreshFast, FAST_MS);
+    // TIER 3: full data + containers
+    fullInterval = setInterval(refreshFull, FULL_MS);
+    // Status fallback — only polls when WS is offline
+    statusInterval = setInterval(refreshStatus, STATUS_MS);
+
+    // Pause HTTP polling when tab is hidden
+    document.addEventListener('visibilitychange', _onVisChange);
+}
+
+/* ── Visibility throttling ──────────────────────────────── */
+function _onVisChange() {
+    if (document.hidden) {
+        if (fastInterval) { clearInterval(fastInterval); fastInterval = null; }
+        if (fullInterval) { clearInterval(fullInterval); fullInterval = null; }
+        if (statusInterval) { clearInterval(statusInterval); statusInterval = null; }
+    } else {
+        refreshFast();
+        refreshStatus();
+        if (!fastInterval) fastInterval = setInterval(refreshFast, FAST_MS);
+        if (!fullInterval) fullInterval = setInterval(refreshFull, FULL_MS);
+        if (!statusInterval) statusInterval = setInterval(refreshStatus, STATUS_MS);
+    }
 }
 
 export function destroy() {
+    document.removeEventListener('visibilitychange', _onVisChange);
     emitter.off('refresh', refreshAll);
     emitter.off('ws:status_update', handleStatusUpdate);
     if (fastInterval) { clearInterval(fastInterval); fastInterval = null; }
@@ -190,6 +217,8 @@ async function refreshFull() {
 }
 
 async function refreshStatus() {
+    // Skip if WebSocket is connected — WS push already delivers this data
+    if (socket.isConnected()) return;
     var data = await api.getStatus();
     if (!data || !qs('#riskScore')) return;
     if (data.health) renderHealth(data.health);

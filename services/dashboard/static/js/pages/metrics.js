@@ -6,17 +6,29 @@ let interval = null;
 let charts = {};
 let history = { cpu: [], mem: [], net: [], anomaly: [] };
 const MAX_POINTS = 60;
+const POLL_MS = 15000;
 
 export function init() {
     emitter.on('refresh', refresh);
     // Listen for real-time WS status updates
     emitter.on('ws:status_update', handleStatusUpdate);
+    document.addEventListener('visibilitychange', _onVisChange);
     initCharts();
     refresh(); // Initial HTTP fetch
-    interval = setInterval(refresh, 15000); // Fallback polling
+    interval = setInterval(refresh, POLL_MS); // Fallback polling
+}
+
+function _onVisChange() {
+    if (document.hidden) {
+        if (interval) { clearInterval(interval); interval = null; }
+    } else {
+        refresh();
+        if (!interval) interval = setInterval(refresh, POLL_MS);
+    }
 }
 
 export function destroy() {
+    document.removeEventListener('visibilitychange', _onVisChange);
     emitter.off('refresh', refresh);
     emitter.off('ws:status_update', handleStatusUpdate);
     if (interval) { clearInterval(interval); interval = null; }

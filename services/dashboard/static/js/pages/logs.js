@@ -9,6 +9,7 @@ let paused = false;
 let logEntries = [];
 let searchDebounce = null;
 const MAX_LOG_ENTRIES = 500;
+const POLL_MS = 15000;
 
 /* ── Search helpers ─────────────────────────────────────── */
 
@@ -49,7 +50,15 @@ function highlightMatch(escapedMsg, search) {
 
 /* ── Lifecycle ──────────────────────────────────────────── */
 
-function handleVisibility() { paused = document.hidden; }
+function handleVisibility() {
+    paused = document.hidden;
+    if (document.hidden) {
+        if (interval) { clearInterval(interval); interval = null; }
+    } else {
+        refresh();
+        if (!interval) interval = setInterval(refresh, POLL_MS);
+    }
+}
 
 export function init() {
     var levelSel = qs('#logLevel');
@@ -80,7 +89,7 @@ export function init() {
     emitter.on('ws:log_event', handleLogEvent);
 
     refresh();
-    interval = setInterval(refresh, 15000);
+    interval = setInterval(refresh, POLL_MS);
 }
 
 export function destroy() {

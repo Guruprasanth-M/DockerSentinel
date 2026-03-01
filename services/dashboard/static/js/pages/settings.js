@@ -6,6 +6,7 @@ import * as dialog from '../ui/dialog.js';
 
 let interval = null;
 let editingWebhook = null; // null = create mode, string = editing name
+const POLL_MS = 10000;
 
 export function init() {
     var saveBtn = qs('#saveToken');
@@ -28,13 +29,24 @@ export function init() {
     if (cancelWh) cancelWh.addEventListener('click', hideWebhookForm);
 
     emitter.on('refresh', refresh);
+    document.addEventListener('visibilitychange', _onVisChange);
 
     refresh();
     loadWebhooks();
-    interval = setInterval(refresh, 10000);
+    interval = setInterval(refresh, POLL_MS);
+}
+
+function _onVisChange() {
+    if (document.hidden) {
+        if (interval) { clearInterval(interval); interval = null; }
+    } else {
+        refresh();
+        if (!interval) interval = setInterval(refresh, POLL_MS);
+    }
 }
 
 export function destroy() {
+    document.removeEventListener('visibilitychange', _onVisChange);
     emitter.off('refresh', refresh);
     if (interval) { clearInterval(interval); interval = null; }
 }

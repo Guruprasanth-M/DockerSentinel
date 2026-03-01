@@ -6,6 +6,7 @@ import { formatTimeAgo, formatTime } from '../helpers/format.js';
 
 let interval = null;
 let currentAlerts = [];
+const POLL_MS = 30000;
 
 export function init() {
     var filterSeverity = qs('#alertSeverity');
@@ -33,12 +34,23 @@ export function init() {
     emitter.on('refresh', refresh);
     // Real-time alert streaming via WebSocket
     emitter.on('ws:alert', handleWsAlert);
+    document.addEventListener('visibilitychange', _onVisChange);
 
     refresh();
-    interval = setInterval(refresh, 30000); // Reduced frequency, WS is primary
+    interval = setInterval(refresh, POLL_MS);
+}
+
+function _onVisChange() {
+    if (document.hidden) {
+        if (interval) { clearInterval(interval); interval = null; }
+    } else {
+        refresh();
+        if (!interval) interval = setInterval(refresh, POLL_MS);
+    }
 }
 
 export function destroy() {
+    document.removeEventListener('visibilitychange', _onVisChange);
     emitter.off('refresh', refresh);
     emitter.off('ws:alert', handleWsAlert);
     if (interval) { clearInterval(interval); interval = null; }

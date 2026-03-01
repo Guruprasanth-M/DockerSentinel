@@ -3,17 +3,29 @@ import * as emitter from '../core/emitter.js';
 import { qs, setHtml, escapeHtml } from '../helpers/dom.js';
 
 let interval = null;
+const POLL_MS = 15000;
 
 export function init() {
     var btn = qs('#portsRefresh');
     if (btn) btn.addEventListener('click', refresh);
 
     emitter.on('refresh', refresh);
+    document.addEventListener('visibilitychange', _onVisChange);
     refresh();
-    interval = setInterval(refresh, 5000);
+    interval = setInterval(refresh, POLL_MS);
+}
+
+function _onVisChange() {
+    if (document.hidden) {
+        if (interval) { clearInterval(interval); interval = null; }
+    } else {
+        refresh();
+        if (!interval) interval = setInterval(refresh, POLL_MS);
+    }
 }
 
 export function destroy() {
+    document.removeEventListener('visibilitychange', _onVisChange);
     emitter.off('refresh', refresh);
     if (interval) { clearInterval(interval); interval = null; }
 }
