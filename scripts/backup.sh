@@ -43,8 +43,13 @@ tar -czf "$BACKUP_FILE" \
     --transform="s|^|sentinel_backup_${TIMESTAMP}/|" \
     2>/dev/null || true
 
-# Add DB dump to archive
-tar -rzf "$BACKUP_FILE" -C "$BACKUP_DIR" "db_dump_${TIMESTAMP}.sql" 2>/dev/null || true
+# Add DB dump: decompress, append, recompress (tar cannot append to .gz directly)
+if [ -s "$DB_DUMP" ]; then
+    TEMP_TAR="${BACKUP_FILE%.gz}"
+    gunzip -k "$BACKUP_FILE" 2>/dev/null && \
+    tar -rf "$TEMP_TAR" -C "$BACKUP_DIR" "db_dump_${TIMESTAMP}.sql" 2>/dev/null && \
+    gzip -f "$TEMP_TAR" 2>/dev/null || true
+fi
 rm -f "$DB_DUMP"
 
 # Restart stack
@@ -53,5 +58,8 @@ docker compose up -d
 
 BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
 echo "=== Backup Complete ==="
+# TODO: Add backup integrity verification (checksum) after archive creation
+# TODO: Implement backup rotation — delete backups older than N days
+# TODO: Add optional upload to S3/GCS for offsite backup
 echo "File: $BACKUP_FILE"
 echo "Size: $BACKUP_SIZE"
