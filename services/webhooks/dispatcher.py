@@ -177,7 +177,7 @@ async def _send_httpx(url: str, body: bytes, headers: dict) -> int:
 
 async def _send_urllib(url: str, body: bytes, headers: dict) -> int:
     """Send request using urllib (sync, run in executor)."""
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
 
     def _do_request():
         req = urllib.request.Request(url, data=body, headers=headers, method="POST")
