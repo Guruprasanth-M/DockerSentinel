@@ -7,6 +7,7 @@ import json
 import os
 import signal
 import sys
+import time
 from pathlib import Path
 
 import structlog
@@ -33,6 +34,7 @@ log = structlog.get_logger(service="ml")
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
 CONFIG_PATH = os.environ.get("SENTINEL_CONFIG", "/config/sentinel.yml")
 HEALTH_FILE = "/tmp/ml_healthy"
+HEARTBEAT_INTERVAL = 10  # seconds
 
 
 def load_config() -> dict:
@@ -134,6 +136,13 @@ async def process_features(redis: Redis, scorer: Scorer) -> None:
                             score=result["score"],
                             risk_level=result["risk_level"],
                         )
+                        # Increment 24h anomaly counter with auto-expiry
+                        try:
+                            count = await redis.incr("sentinel:anomaly_count_24h")
+                            if count == 1:
+                                await redis.expire("sentinel:anomaly_count_24h", 86400)
+                        except Exception:
+                            pass
 
         except asyncio.CancelledError:
             raise
@@ -181,11 +190,35 @@ async def main() -> None:
     # Start scoring task
     scoring_task = asyncio.create_task(process_features(redis, scorer))
 
+    # Heartbeat publisher
+    async def heartbeat() -> None:
+        while not shutdown_event.is_set():
+            try:
+                await redis.set(
+                    "sentinel:heartbeat:ml",
+                    json.dumps({
+                        "status": "active",
+                        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                        "pid": os.getpid(),
+                        "model_ready": scorer.is_ready,
+                    }),
+                    ex=HEARTBEAT_INTERVAL * 2,
+                )
+            except Exception as e:
+                log.error("heartbeat_failed", error=str(e))
+            try:
+                await asyncio.wait_for(shutdown_event.wait(), timeout=HEARTBEAT_INTERVAL)
+            except asyncio.TimeoutError:
+                pass
+
+    heartbeat_task = asyncio.create_task(heartbeat())
+
     # Wait for shutdown
     await shutdown_event.wait()
 
     # Graceful shutdown
     log.info("ml_shutdown_starting")
+    heartbeat_task.cancel()
     scoring_task.cancel()
     try:
         await scoring_task
