@@ -207,8 +207,10 @@ async def _run_command(cmd: list, use_nsenter: bool = True) -> dict:
 
 
 def _is_ip(s: str) -> bool:
-    """Basic check if a string looks like an IP address."""
-    parts = s.split(".")
-    if len(parts) == 4:
-        return all(p.isdigit() and 0 <= int(p) <= 255 for p in parts)
-    return False
+    """Check if a string looks like an IPv4 or IPv6 address."""
+    import ipaddress
+    try:
+        ipaddress.ip_address(s)
+        return True
+    except ValueError:
+        return False
