@@ -85,7 +85,7 @@ services:
     volumes:
       - sentinel-redis-data:/data
       - ./config/redis.conf:/etc/redis/redis.conf:ro
-    command: redis-server /etc/redis/redis.conf
+    command: redis-server /etc/redis/redis.conf --requirepass ${REDIS_PASSWORD:-sentinel_redis_pass}
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-sentinel_redis_pass}", "ping"]
       interval: 10s
@@ -121,9 +121,11 @@ services:
       - SERVICE_NAME=collectors
     volumes:
       - /var/log:/host_logs:ro
+      - /proc:/host_proc:ro
       - sentinel-state-data:/data/collector-state
       - ./config:/config:ro
       - ./scripts:/scripts:ro
+    pid: "host"
     healthcheck:
       test: ["CMD", "python", "-c", "import os,sys; sys.exit(0 if os.path.exists('/tmp/collectors_healthy') else 1)"]
       interval: 30s
