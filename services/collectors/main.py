@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import signal
 import sys
+import time
 from pathlib import Path
 from typing import List
 
@@ -37,6 +39,7 @@ log = structlog.get_logger(service="collectors")
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
 CONFIG_PATH = os.environ.get("SENTINEL_CONFIG", "/config/sentinel.yml")
 HEALTH_FILE = "/tmp/collectors_healthy"
+HEARTBEAT_INTERVAL = 10  # seconds
 
 
 def load_config() -> dict:
@@ -117,6 +120,27 @@ async def main() -> None:
         supervisor("features", run_features, redis, feature_window)
     ))
 
+    # Heartbeat publisher
+    async def heartbeat() -> None:
+        while not shutdown_event.is_set():
+            try:
+                await redis.set(
+                    "sentinel:heartbeat:collectors",
+                    json.dumps({
+                        "status": "running",
+                        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                        "pid": os.getpid(),
+                        "task_count": len(tasks),
+                    }),
+                    ex=HEARTBEAT_INTERVAL * 2,
+                )
+            except Exception as e:
+                log.error("heartbeat_failed", error=str(e))
+            try:
+                await asyncio.wait_for(shutdown_event.wait(), timeout=HEARTBEAT_INTERVAL)
+            except asyncio.TimeoutError:
+                pass
+
     # Mark as healthy
     Path(HEALTH_FILE).touch()
     log.info("collectors_healthy", task_count=len(tasks))
@@ -133,12 +157,14 @@ async def main() -> None:
         loop.add_signal_handler(sig, handle_signal, sig)
 
     # Wait for shutdown signal
+    heartbeat_task = asyncio.create_task(heartbeat())
     await shutdown_event.wait()
 
     # Graceful shutdown
     log.info("graceful_shutdown_starting")
 
     # Cancel all tasks
+    heartbeat_task.cancel()
     for task in tasks:
         task.cancel()
 
