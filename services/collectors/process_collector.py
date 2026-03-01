@@ -181,6 +181,3 @@ async def run(redis: Redis, interval_ms: int = 500) -> None:
             log.error("process_collector_error", error=str(e))
             await asyncio.sleep(2)
 
-
-# Import for the summary timestamp
-from datetime import datetime
