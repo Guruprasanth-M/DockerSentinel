@@ -924,6 +924,9 @@ main() {
     wait_for_healthy
 
     # Phase 4: Validation
+    # TODO: Add post-install smoke test (inject test event, verify pipeline end-to-end)
+    # TODO: Generate random webhook_secret in .env (currently only API token and Redis password are randomized)
+    # TODO: Add --uninstall / --update flags for lifecycle management
     if validate_stack; then
         print_summary
     else
