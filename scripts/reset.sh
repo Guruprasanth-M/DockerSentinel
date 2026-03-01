@@ -34,12 +34,15 @@ mkdir -p "$PROJECT_DIR/data/redis"
 mkdir -p "$PROJECT_DIR/data/models"
 mkdir -p "$PROJECT_DIR/data/audit"
 mkdir -p "$PROJECT_DIR/data/collector-state"
-chmod 777 "$PROJECT_DIR/data/redis"
+chmod 700 "$PROJECT_DIR/data/redis"
 
 # Restart stack
 echo "Restarting stack..."
 docker compose up -d
 
 echo "=== Reset Complete ==="
+# TODO: Also wipe PostgreSQL data (data/db/) for a true factory reset
+# TODO: Regenerate secrets (.env) on reset to avoid stale credentials
+# TODO: Add --force flag to skip interactive confirmation
 echo "System restarted with clean state."
 echo "Pre-trained ML model will be regenerated on first start."
