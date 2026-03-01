@@ -272,7 +272,12 @@ async def stream_events(
             except WebSocketDisconnect:
                 raise
             except Exception as e:
-                log.error("ws_stream_error", error=str(e))
+                err_msg = str(e)
+                # If send-after-close, the connection is dead — break the loop
+                if "after sending" in err_msg or "DISCONNECTED" in err_msg:
+                    log.info("ws_client_gone", reason=err_msg)
+                    break
+                log.error("ws_stream_error", error=err_msg)
                 await asyncio.sleep(1)
     finally:
         ping_task.cancel()
