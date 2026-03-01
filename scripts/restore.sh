@@ -34,16 +34,19 @@ echo "Stopping stack..."
 cd "$PROJECT_DIR"
 docker compose down 2>/dev/null || true
 
-# Restore data
+# Restore data (strip leading directory prefix added during backup)
 echo "Restoring data..."
-tar -xzf "$BACKUP_FILE" -C "$PROJECT_DIR"
+tar -xzf "$BACKUP_FILE" -C "$PROJECT_DIR" --strip-components=1
 
 # Fix permissions
-chmod 777 data/redis/ 2>/dev/null || true
+chmod 700 data/redis/ 2>/dev/null || true
 
 # Restart stack
 echo "Restarting stack..."
 docker compose up -d
 
 echo "=== Restore Complete ==="
+# TODO: Verify restored data integrity (checksums, DB consistency check)
+# TODO: Re-import PostgreSQL dump if present in the backup archive
+# TODO: Add rollback capability if restore fails midway
 echo "Stack is starting. Check status with: docker compose ps"
