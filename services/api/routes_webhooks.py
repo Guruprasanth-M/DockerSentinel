@@ -178,7 +178,7 @@ async def test_webhook(webhook_name: str):
             test_payload = {
                 "event": "test",
                 "message": "Docker Sentinel test webhook",
-                "timestamp": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+                "timestamp": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat().replace("+00:00", "Z"),
                 "text": "Docker Sentinel: Test webhook delivery",
             }
             import json

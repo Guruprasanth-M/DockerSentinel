@@ -165,7 +165,8 @@ async def _status_broadcast_loop(application) -> None:
 @app.websocket("/ws/live")
 async def websocket_live(websocket: WebSocket):
     """Live event WebSocket endpoint."""
-    # WS token validation: validate token param if auth is configured
+    # TODO: Implement proper auth when user management is added (admin = read/write, user = read-only)
+    # Currently allows unauthenticated WebSocket for dashboard. Reject only wrong tokens.
     token = websocket.query_params.get("token", "")
     api_token = get_api_token()
     if api_token and api_token != "CHANGE_THIS_TO_64_CHAR_HEX_STRING":

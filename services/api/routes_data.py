@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 import structlog
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from redis.asyncio import Redis
 
 from schemas import (
@@ -165,9 +165,9 @@ async def execute_action(request: Request, action: ActionRequest):
             reversible=action.action == "block_ip",
         )
     except Exception as e:
-        return ActionResponse(
-            status="error",
-            message=f"Failed to queue action: {str(e)}",
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to queue action: {str(e)}",
         )
 
 

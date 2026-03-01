@@ -97,6 +97,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
                     status_code=429, content={"detail": "Rate limit exceeded"}
                 )
 
+        # TODO: Replace with role-based auth when user management is implemented
+        # (admin = read/write all, user = read-only, no actions)
         # Skip auth for public paths and WebSocket
         if path in self.PUBLIC_PATHS or path.startswith("/ws/"):
             return await call_next(request)
