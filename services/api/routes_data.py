@@ -48,58 +48,104 @@ async def logs(
 
     events: List[LogEntry] = []
     next_cursor: Optional[str] = None
+    has_filter = bool(level or source)
+    # When filters are active, scan more entries per batch to fill the
+    # requested limit (auth.log can dominate the stream 70%+).
+    batch_size = limit * 10 if has_filter else limit * 2
+    max_scanned = 10000  # Safety cap to avoid scanning the entire stream
 
     try:
-        # M4: Use cursor-based pagination with stream IDs
-        if after:
-            entries = await redis.xrevrange("sentinel:logs", max=after, count=limit * 2)
-            # Skip the first entry since 'after' is inclusive in xrevrange
-            if entries and entries[0][0] == after:
-                entries = entries[1:]
-        else:
-            entries = await redis.xrevrange("sentinel:logs", count=limit * 2)
+        cursor_id = after if after else "+"
+        scanned = 0
 
-        for entry_id, fields in entries:
-            raw = fields.get("data", "")
-            try:
-                data = json.loads(raw)
-            except (json.JSONDecodeError, TypeError):
-                continue
-
-            event_level = data.get("level", "info")
-            event_source = data.get("source", "")
-
-            # Apply filters
-            if level and event_level != level:
-                continue
-            if source and source not in event_source:
-                continue
-
-            parsed = None
-            if data.get("type") and data["type"] != "unknown":
-                parsed = LogEventParsed(
-                    type=data.get("type", "unknown"),
-                    user=data.get("user"),
-                    source_ip=data.get("source_ip"),
+        while len(events) < limit and scanned < max_scanned:
+            if cursor_id == "+":
+                entries = await redis.xrevrange("sentinel:logs", count=batch_size)
+            else:
+                entries = await redis.xrevrange(
+                    "sentinel:logs", max=cursor_id, count=batch_size
                 )
+                # Skip the cursor entry itself (xrevrange max is inclusive)
+                if entries and entries[0][0] == cursor_id:
+                    entries = entries[1:]
 
-            events.append(LogEntry(
-                id=entry_id,
-                timestamp=data.get("timestamp", ""),
-                source=event_source,
-                level=event_level,
-                message=data.get("message", ""),
-                parsed=parsed,
-            ))
+            if not entries:
+                break
+
+            scanned += len(entries)
+
+            for entry_id, fields in entries:
+                raw = fields.get("data", "")
+                try:
+                    data = json.loads(raw)
+                except (json.JSONDecodeError, TypeError):
+                    continue
+
+                event_level = data.get("level", "info")
+                event_source = data.get("source", "")
+
+                # Apply filters
+                if level and event_level != level:
+                    continue
+                if source and source not in event_source:
+                    continue
+
+                parsed = None
+                if data.get("type") and data["type"] != "unknown":
+                    parsed = LogEventParsed(
+                        type=data.get("type", "unknown"),
+                        user=data.get("user"),
+                        source_ip=data.get("source_ip"),
+                    )
+
+                events.append(LogEntry(
+                    id=entry_id,
+                    timestamp=data.get("timestamp", ""),
+                    source=event_source,
+                    level=event_level,
+                    message=data.get("message", ""),
+                    parsed=parsed,
+                ))
+
+                if len(events) >= limit:
+                    next_cursor = entry_id
+                    break
 
             if len(events) >= limit:
-                next_cursor = entry_id
+                break
+
+            # Move cursor to continue scanning
+            cursor_id = entries[-1][0]
+
+            # If no filter, one pass is enough
+            if not has_filter:
                 break
 
     except Exception as e:
         log.error("logs_query_error", error=str(e))
 
     return LogsResponse(events=events, total=len(events), next_cursor=next_cursor)
+
+
+@router.get("/logs/sources")
+async def log_sources(request: Request):
+    """Return distinct log sources currently in the stream."""
+    redis: Redis = get_redis(request)
+    sources: set = set()
+    try:
+        entries = await redis.xrevrange("sentinel:logs", count=2000)
+        for _, fields in entries:
+            raw = fields.get("data", "")
+            try:
+                data = json.loads(raw)
+                src = data.get("source", "")
+                if src:
+                    sources.add(src)
+            except (json.JSONDecodeError, TypeError):
+                continue
+    except Exception as e:
+        log.error("log_sources_error", error=str(e))
+    return {"sources": sorted(sources)}
 
 
 @router.get("/config")

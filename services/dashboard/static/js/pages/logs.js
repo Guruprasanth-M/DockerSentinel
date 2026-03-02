@@ -50,6 +50,23 @@ function highlightMatch(escapedMsg, search) {
 
 /* ── Lifecycle ──────────────────────────────────────────── */
 
+async function populateSources(selectEl) {
+    try {
+        var data = await api.getLogSources();
+        if (!data || !data.sources) return;
+        // Preserve current selection
+        var current = selectEl.value;
+        selectEl.innerHTML = '<option value="">All Sources</option>';
+        data.sources.forEach(function (src) {
+            var opt = document.createElement('option');
+            opt.value = src;
+            opt.textContent = src;
+            selectEl.appendChild(opt);
+        });
+        if (current) selectEl.value = current;
+    } catch (_) { /* keep static fallback */ }
+}
+
 function handleVisibility() {
     paused = document.hidden;
     if (document.hidden) {
@@ -71,6 +88,9 @@ export function init() {
     if (sourceSel) sourceSel.addEventListener('change', refresh);
     if (limitSel) limitSel.addEventListener('change', refresh);
     if (refreshBtn) refreshBtn.addEventListener('click', function () { lastHash = ''; refresh(); });
+
+    // Populate source dropdown dynamically from API
+    if (sourceSel) populateSources(sourceSel);
 
     // Debounced search — client-side filter, no API call needed
     if (searchInput) {

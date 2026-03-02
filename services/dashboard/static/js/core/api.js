@@ -100,6 +100,10 @@ export function getLogs(params = {}) {
     return request('/logs?' + p);
 }
 
+export function getLogSources() {
+    return request('/logs/sources');
+}
+
 export function getConfig() {
     return request('/config');
 }
