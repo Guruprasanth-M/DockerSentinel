@@ -927,6 +927,30 @@ main() {
     # TODO: Add post-install smoke test (inject test event, verify pipeline end-to-end)
     # TODO: Generate random webhook_secret in .env (currently only API token and Redis password are randomized)
     # TODO: Add --uninstall / --update flags for lifecycle management
+    #
+    # TODO: Self-healing watchdog (CRITICAL for production)
+    #   The stack has restart: unless-stopped but docker kill / OOM / crash can leave
+    #   containers stuck in Exited state. Need a watchdog that:
+    #
+    #   Option A — API-driven recovery:
+    #     1. API already polls container health via /api/status
+    #     2. When a container is unhealthy/exited for >30s, API calls a recovery script
+    #     3. Recovery script: docker compose up -d <service> (restart just the failed service)
+    #     4. If rebuild needed (image corruption): docker compose build <service> && docker compose up -d <service>
+    #     5. API logs recovery attempts to sentinel:recovery stream
+    #
+    #   Option B — When API itself is down:
+    #     1. Host-level cron job (every 60s) that checks: curl -sf http://localhost:8080/api/health
+    #     2. If health check fails 3x consecutive → run: docker compose up -d
+    #     3. If still failing → full rebuild: docker compose build && docker compose up -d
+    #     4. Log to /var/log/sentinel-watchdog.log
+    #
+    #   Option C — Docker healthcheck + autoheal (simplest):
+    #     1. Add willfarrell/autoheal container to docker-compose.yml
+    #     2. It watches Docker healthchecks and restarts unhealthy containers automatically
+    #     3. Doesn't handle image corruption but covers 90% of cases
+    #
+    #   Implementation order: C first (quick win), then A (smart recovery), then B (last resort)
     if validate_stack; then
         print_summary
     else
