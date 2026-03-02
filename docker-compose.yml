@@ -53,6 +53,7 @@ services:
     container_name: sentinel-db
     restart: unless-stopped
     networks: [sentinel-net]
+    entrypoint: ["/bin/bash", "/scripts/db_password_sync.sh"]
     environment:
       POSTGRES_DB: ${DB_NAME:-sentinel}
       POSTGRES_USER: ${DB_USER:-sentinel}
@@ -60,6 +61,7 @@ services:
     volumes:
       - sentinel-db-data:/var/lib/postgresql/data
       - ./config/db_init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+      - ./config/db_password_sync.sh:/scripts/db_password_sync.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-sentinel} -d ${DB_NAME:-sentinel}"]
       interval: 10s
@@ -191,8 +193,11 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      db:
+        condition: service_healthy
     environment:
       - REDIS_URL=redis://:${REDIS_PASSWORD:-sentinel_redis_pass}@redis:6379/0
+      - DB_URL=postgresql://${DB_USER:-sentinel}:${DB_PASSWORD:-sentinel_pass}@db:5432/${DB_NAME:-sentinel}
       - SENTINEL_CONFIG=/config/sentinel.yml
       - SERVICE_NAME=policy
     volumes:
