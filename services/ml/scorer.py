@@ -134,9 +134,13 @@ class Scorer:
         return float(normalized)
 
     def _zscore_score(self, features: Dict) -> float:
-        """Score using z-score deviation from baseline. Returns 0.0-1.0."""
+        """Score using z-score deviation from baseline with significance filtering."""
         if not self.baseline_stats:
             return 0.0
+
+        MIN_RELATIVE_CHANGE = 0.10
+        MIN_ABSOLUTE_CHANGE = 0.5
+        STD_FLOOR = 0.5
 
         z_scores = []
         for name in FEATURE_NAMES:
@@ -145,17 +149,25 @@ class Scorer:
             mean = stats.get("mean", 0.0)
             std = stats.get("std", 1.0)
 
-            if std > 0:
-                z = abs(value - mean) / std
-                z_scores.append(z)
+            delta = abs(value - mean)
+
+            # Skip insignificant changes (< 10% of mean or below absolute floor)
+            if delta < max(abs(mean) * MIN_RELATIVE_CHANGE, MIN_ABSOLUTE_CHANGE):
+                z_scores.append(0.0)
+                continue
+
+            effective_std = max(std, STD_FLOOR)
+            z_scores.append(delta / effective_std)
 
         if not z_scores:
             return 0.0
 
-        # Max z-score, capped and normalized
-        max_z = max(z_scores)
-        # z=3 maps to ~0.5, z=6 maps to ~1.0
-        normalized = min(1.0, max_z / 6.0)
+        # Average top-3 z-scores instead of raw max to reduce single-feature noise
+        sorted_z = sorted(z_scores, reverse=True)
+        top_n = min(3, len(sorted_z))
+        avg_top_z = sum(sorted_z[:top_n]) / top_n
+
+        normalized = min(1.0, avg_top_z / 6.0)
         return float(normalized)
 
     def _ema_score(self, current_score: float) -> float:
