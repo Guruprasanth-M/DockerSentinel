@@ -182,18 +182,17 @@ async def health(request: Request):
         if collectors_ts:
             services.collectors = "running"
         else:
-            services.collectors = "unknown"
+            services.collectors = "inactive"
     except Exception:
         services.collectors = "unknown"
 
-    # Check ML health via heartbeat key
+    # Check ML health via heartbeat key (TTL-based: expires ~20s after ML stops)
     try:
         ml_ts = await redis.get("sentinel:heartbeat:ml")
         if ml_ts:
             services.ml_engine = "active"
         else:
-            latest_score = await redis.get("sentinel:latest_score")
-            services.ml_engine = "active" if latest_score else "inactive"
+            services.ml_engine = "inactive"
     except Exception:
         services.ml_engine = "unknown"
 
