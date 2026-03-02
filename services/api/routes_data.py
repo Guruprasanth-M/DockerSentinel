@@ -21,6 +21,8 @@ from schemas import (
     LogEntry,
     LogEventParsed,
     LogsResponse,
+    ScoreEntry,
+    ScoresResponse,
 )
 
 log = structlog.get_logger()
@@ -319,3 +321,64 @@ async def actions(
         log.error("actions_query_error", error=str(e))
 
     return ActionsResponse(actions=action_list, total=len(action_list), next_cursor=next_cursor)
+
+
+@router.get("/scores", response_model=ScoresResponse)
+async def scores(
+    request: Request,
+    limit: int = Query(default=50, ge=1, le=500),
+    after: Optional[str] = Query(default=None, description="Cursor - stream ID to start after"),
+):
+    """Recent ML anomaly scores from sentinel:scores stream."""
+    redis: Redis = get_redis(request)
+
+    score_list: List[ScoreEntry] = []
+    next_cursor: Optional[str] = None
+
+    try:
+        if after:
+            entries = await redis.xrevrange("sentinel:scores", max=after, count=limit + 1)
+            if entries and entries[0][0] == after:
+                entries = entries[1:]
+        else:
+            entries = await redis.xrevrange("sentinel:scores", count=limit + 1)
+
+        for entry_id, fields in entries:
+            try:
+                raw = fields.get("data", "")
+                if raw:
+                    data = json.loads(raw) if isinstance(raw, str) else raw
+                else:
+                    data = fields
+
+                features = data.get("features", {})
+                if isinstance(features, str):
+                    try:
+                        features = json.loads(features)
+                    except (json.JSONDecodeError, TypeError):
+                        features = {}
+
+                score_list.append(ScoreEntry(
+                    id=entry_id,
+                    timestamp=data.get("timestamp", ""),
+                    score=float(data.get("score", 0.0)),
+                    risk_level=data.get("risk_level", "normal"),
+                    isolation_forest_score=float(data.get("isolation_forest_score", 0.0)),
+                    zscore_score=float(data.get("zscore_score", 0.0)),
+                    ema_score=float(data.get("ema_score", 0.0)),
+                    model_version=data.get("model_version", ""),
+                    features=features,
+                ))
+
+                if len(score_list) >= limit:
+                    next_cursor = entry_id
+                    break
+
+            except Exception as e:
+                log.error("score_parse_error", error=str(e))
+                continue
+
+    except Exception as e:
+        log.error("scores_query_error", error=str(e))
+
+    return ScoresResponse(scores=score_list, total=len(score_list), next_cursor=next_cursor)

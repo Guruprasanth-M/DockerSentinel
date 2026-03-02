@@ -157,3 +157,21 @@ class ActionsResponse(BaseModel):
     actions: List[ActionLogEntry] = Field(default_factory=list)
     total: int = 0
     next_cursor: Optional[str] = None  # M4: cursor for next page
+
+
+class ScoreEntry(BaseModel):
+    id: Optional[str] = None
+    timestamp: str = ""
+    score: float = 0.0
+    risk_level: str = "normal"
+    isolation_forest_score: float = 0.0
+    zscore_score: float = 0.0
+    ema_score: float = 0.0
+    model_version: str = ""
+    features: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ScoresResponse(BaseModel):
+    scores: List[ScoreEntry] = Field(default_factory=list)
+    total: int = 0
+    next_cursor: Optional[str] = None
