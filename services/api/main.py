@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import signal
 import time
 from contextlib import asynccontextmanager
@@ -36,6 +37,13 @@ log = structlog.get_logger(service="api")
 
 # ─── Configuration ───
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
+
+
+def _mask_url(url: str) -> str:
+    """Mask passwords in connection URLs for safe logging."""
+    return re.sub(r'(://[^:]*:)[^@]+(@)', r'\1*****\2', url)
+
+
 CONFIG_PATH = os.environ.get("SENTINEL_CONFIG", "/config/sentinel.yml")
 
 # M9: Disable /docs in production unless explicitly enabled
@@ -45,7 +53,7 @@ _ENABLE_DOCS = os.environ.get("SENTINEL_ENABLE_DOCS", "false").lower() in ("true
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     """Manage startup and shutdown of the application."""
-    log.info("api_starting", redis_url=REDIS_URL)
+    log.info("api_starting", redis_url=_mask_url(REDIS_URL))
 
     redis = Redis.from_url(REDIS_URL, decode_responses=True)
     try:

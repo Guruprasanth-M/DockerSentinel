@@ -98,7 +98,7 @@ async def send_replay(
             latest_score = await redis.get("sentinel:latest_score")
             if latest_score:
                 await websocket.send_json({
-                    "type": "metric_update",
+                    "type": "status_update",
                     "data": json.loads(latest_score),
                 })
 
@@ -221,7 +221,7 @@ async def stream_events(
 
                         if stream_name == "sentinel:scores":
                             await websocket.send_json({
-                                "type": "metric_update",
+                                "type": "status_update",
                                 "id": msg_id,
                                 "data": data,
                             })
