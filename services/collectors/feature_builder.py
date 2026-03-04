@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Dict, Set
@@ -101,34 +102,60 @@ class FeatureBuilder:
 
 
 async def run(redis: Redis, window_seconds: int = 5) -> None:
-    """Run the feature builder — reads all streams and emits feature vectors."""
+    """Run the feature builder — reads all streams using consumer groups and emits feature vectors.
+    
+    Uses XREADGROUP instead of XREAD so messages are acknowledged and
+    won't be re-processed on restart (BUG-M07 fix).
+    """
     builder = FeatureBuilder(window_seconds=window_seconds)
-    stream_name = "sentinel:features"
+    output_stream = "sentinel:features"
     maxlen = 10000
 
-    # Track last read ID for each stream
-    last_ids = {
-        "sentinel:logs": "$",
-        "sentinel:network": "$",
-        "sentinel:processes": "$",
-    }
+    consumer_group = "feature_builder"
+    consumer_name = f"fb_{os.getpid()}"
 
-    log.info("feature_builder_start", window_seconds=window_seconds)
+    input_streams = ["sentinel:logs", "sentinel:network", "sentinel:processes"]
+
+    # Create consumer groups for each input stream
+    for stream in input_streams:
+        try:
+            await redis.xgroup_create(stream, consumer_group, id="0", mkstream=True)
+            log.info("consumer_group_created", stream=stream, group=consumer_group)
+        except Exception as e:
+            if "BUSYGROUP" not in str(e):
+                raise
+
+    log.info("feature_builder_start", window_seconds=window_seconds, consumer=consumer_name)
+
+    # First drain pending messages, then switch to new messages
+    pending_streams = {s: "0" for s in input_streams}
+    new_streams = {s: ">" for s in input_streams}
+    processed_pending = False
 
     while True:
         try:
-            # Read from all streams with a timeout
-            results = await redis.xread(
-                streams=last_ids,
-                count=100,
-                block=int(window_seconds * 1000),
-            )
+            if not processed_pending:
+                results = await redis.xreadgroup(
+                    consumer_group, consumer_name,
+                    streams=pending_streams,
+                    count=100,
+                    block=int(window_seconds * 1000),
+                )
+                has_msgs = results and any(msgs for _, msgs in results)
+                if not has_msgs:
+                    processed_pending = True
+                    continue
+            else:
+                results = await redis.xreadgroup(
+                    consumer_group, consumer_name,
+                    streams=new_streams,
+                    count=100,
+                    block=int(window_seconds * 1000),
+                )
 
             for stream_key, messages in results:
                 stream_name_str = stream_key if isinstance(stream_key, str) else stream_key.decode()
                 for msg_id, fields in messages:
-                    last_ids[stream_name_str] = msg_id
-
                     raw = fields.get("data") or fields.get(b"data", b"")
                     if isinstance(raw, bytes):
                         raw = raw.decode()
@@ -136,6 +163,7 @@ async def run(redis: Redis, window_seconds: int = 5) -> None:
                     try:
                         data = json.loads(raw)
                     except (json.JSONDecodeError, TypeError):
+                        await redis.xack(stream_name_str, consumer_group, msg_id)
                         continue
 
                     if stream_name_str == "sentinel:logs":
@@ -145,10 +173,12 @@ async def run(redis: Redis, window_seconds: int = 5) -> None:
                     elif stream_name_str == "sentinel:processes":
                         builder.process_process_event(data)
 
+                    await redis.xack(stream_name_str, consumer_group, msg_id)
+
             # Build and emit feature vector
             vector = builder.build_vector()
             await redis.xadd(
-                stream_name,
+                output_stream,
                 {"data": vector.model_dump_json()},
                 maxlen=maxlen,
                 approximate=True,

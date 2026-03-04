@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import signal
 import sys
 import time
@@ -20,6 +21,12 @@ from network_collector import run as run_network
 from process_collector import run as run_process
 from feature_builder import run as run_features
 from state import CollectorState
+
+
+def _mask_url(url: str) -> str:
+    """Mask passwords in connection URLs for safe logging."""
+    return re.sub(r'(://[^:]*:)[^@]+(@)', r'\1*****\2', url)
+
 
 # ─── Structured logging setup ───
 structlog.configure(
@@ -78,7 +85,7 @@ async def main() -> None:
     interval_ms = collection_config.get("interval_ms", 500)
     feature_window = collection_config.get("feature_window_seconds", 5)
 
-    log.info("collectors_starting", redis_url=REDIS_URL)
+    log.info("collectors_starting", redis_url=_mask_url(REDIS_URL))
 
     # Connect to Redis
     redis = Redis.from_url(REDIS_URL, decode_responses=True)
