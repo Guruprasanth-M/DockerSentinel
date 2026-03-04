@@ -7,7 +7,7 @@ import structlog
 logger = structlog.get_logger("sentinel.actions.ip_block")
 
 # C1: Use nsenter to run firewall commands in the host network namespace.
-# Requires pid:host and SYS_PTRACE + SYS_ADMIN capabilities in docker-compose.
+# Requires pid:host and SYS_PTRACE + NET_ADMIN capabilities in docker-compose.
 NSENTER_PREFIX = ["nsenter", "--target", "1", "--net"]
 
 

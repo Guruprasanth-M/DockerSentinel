@@ -217,7 +217,7 @@ services:
           memory: 64M
 
 
-  # Automated response actions (C1/C2: pid host + nsenter for host iptables)
+  # Automated response actions (C1: pid host + nsenter for host iptables, cap_drop ALL + minimal caps)
 
   actions:
     build:
@@ -238,11 +238,12 @@ services:
     volumes:
       - ./config:/config:ro
       - sentinel-audit-data:/data/audit
+    cap_drop:
+      - ALL
     cap_add:
       - NET_ADMIN
       - NET_RAW
       - SYS_PTRACE
-      - SYS_ADMIN
     healthcheck:
       test: ["CMD", "python", "-c", "import os,sys; sys.exit(0 if os.path.exists('/tmp/actions_healthy') else 1)"]
       interval: 30s
