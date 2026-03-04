@@ -322,7 +322,7 @@ function renderHealth(data) {
 
 /* ── Metrics ───────────────────────────────────────────── */
 function renderMetrics(data) {
-    var riskScore = data.risk_score != null ? Math.round(data.risk_score * 100) : 0;
+    var riskScore = data.risk_score != null ? Math.round(data.risk_score * 100) : (data.score != null ? Math.round(data.score * 100) : 0);
     smoothText('riskScore', String(riskScore));
     smoothText('anomalyCount', String(data.anomaly_count || 0));
     smoothText('alertCount', String(data.alert_count || 0));

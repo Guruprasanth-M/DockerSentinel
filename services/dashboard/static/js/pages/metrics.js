@@ -105,7 +105,7 @@ function updateCharts(data) {
     push(history.cpu, label, data.cpu_percent || 0);
     push(history.mem, label, data.memory_percent || 0);
     push(history.net, label, { inVal: data.network_bytes_recv_per_sec || data.net_bytes_recv_rate || 0, outVal: data.network_bytes_sent_per_sec || data.net_bytes_sent_rate || 0 });
-    push(history.anomaly, label, data.risk_score || data.anomaly_score || 0);
+    push(history.anomaly, label, data.risk_score || data.score || data.anomaly_score || 0);
 
     if (charts.mCpuChart) charts.mCpuChart.setOption({ xAxis: { data: labels(history.cpu) }, series: [{ data: vals(history.cpu) }] });
     if (charts.mMemChart) charts.mMemChart.setOption({ xAxis: { data: labels(history.mem) }, series: [{ data: vals(history.mem) }] });
@@ -126,7 +126,7 @@ function renderTable(data) {
         ['load_1m', data.load_1m, '', data.load_1m > 4 ? 'danger' : data.load_1m > 2 ? 'warning' : 'success'],
         ['network_recv', formatNumber(data.network_bytes_recv_per_sec || data.net_bytes_recv_rate || 0, 0), 'B/s', 'info'],
         ['network_sent', formatNumber(data.network_bytes_sent_per_sec || data.net_bytes_sent_rate || 0, 0), 'B/s', 'info'],
-        ['risk_score', formatNumber(data.risk_score || 0, 4), '', (data.risk_score || 0) > 0.7 ? 'danger' : 'success'],
+        ['risk_score', formatNumber(data.risk_score || data.score || 0, 4), '', (data.risk_score || data.score || 0) > 0.7 ? 'danger' : 'success'],
         ['risk_level', data.risk_level || 'normal', '', (data.risk_level === 'critical' || data.risk_level === 'high') ? 'danger' : 'success'],
     ];
 

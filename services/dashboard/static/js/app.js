@@ -24,7 +24,7 @@ async function boot() {
     socket.connect(token);
 
     emitter.on('ws:anomaly_detected', function (data) {
-        var score = data && data.anomaly_score ? data.anomaly_score.toFixed(3) : 'N/A';
+        var score = data && (data.anomaly_score || data.score) ? (data.anomaly_score || data.score).toFixed(3) : 'N/A';
         dialog.notify('Anomaly Detected', 'Score: ' + score, 'warning');
     });
 
