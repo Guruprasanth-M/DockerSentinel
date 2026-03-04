@@ -171,7 +171,19 @@ class Scorer:
         return float(normalized)
 
     def _ema_score(self, current_score: float) -> float:
-        """Apply EMA smoothing to detect drift. Returns 0.0-1.0."""
+        """Apply Exponential Moving Average (EMA) smoothing to detect score drift.
+        
+        EMA weights recent scores more heavily than older ones, creating a
+        smoothed trend line. This prevents single-frame spikes from
+        dominating the final score while still catching sustained anomalies.
+        
+        Formula: ema_t = alpha * score_t + (1 - alpha) * ema_{t-1}
+        Alpha = 0.3 means ~30% weight on current score, ~70% on history.
+        Window = last 60 scores (~5 minutes at 5-second intervals).
+        
+        Returns:
+            float: Smoothed score clamped to [0.0, 1.0].
+        """
         self._ema_scores.append(current_score)
 
         # Keep last 60 scores (5 minutes at 5-second windows)
@@ -179,34 +191,46 @@ class Scorer:
             self._ema_scores = self._ema_scores[-60:]
 
         if len(self._ema_scores) < 2:
-            return current_score
+            return min(1.0, max(0.0, current_score))
 
-        # Calculate EMA
+        # Calculate EMA iteratively over the window
         ema = self._ema_scores[0]
         for score in self._ema_scores[1:]:
             ema = self._ema_alpha * score + (1 - self._ema_alpha) * ema
 
-        return float(ema)
+        return float(min(1.0, max(0.0, ema)))
 
     def score(self, features: Dict) -> Dict:
         """Score a feature vector using ensemble of methods.
+
+        Ensemble formula (BUG-M12 documented):
+          raw = 0.5 * IF + 0.3 * Z + 0.2 * max(IF, Z)
+        
+        The max() term is intentionally asymmetric — it amplifies whichever
+        detector sees the strongest anomaly. This means a strong IF signal
+        or a strong z-score signal alone can push the ensemble higher than
+        a simple weighted average would. The 0.2 weight prevents it from
+        dominating, but ensures single-method detections aren't diluted.
+        
+        Final blend: 0.7 * raw + 0.3 * EMA (smoothed trend).
+        All intermediate and final scores are clamped to [0.0, 1.0].
 
         Returns a scoring result dict with individual and combined scores.
         """
         X = self._feature_vector_to_array(features)
 
-        # Individual scores
+        # Individual scores (each returns 0.0–1.0)
         if_score = self._isolation_forest_score(X)
         z_score = self._zscore_score(features)
 
-        # Ensemble: weighted average
+        # Ensemble: weighted average with max() amplifier for strongest signal
         raw_ensemble = 0.5 * if_score + 0.3 * z_score + 0.2 * max(if_score, z_score)
 
         # Apply EMA smoothing
         ema_score = self._ema_score(raw_ensemble)
 
-        # Final score: blend of instant and smoothed
-        final_score = 0.7 * raw_ensemble + 0.3 * ema_score
+        # Final score: blend of instant and smoothed, clamped to [0.0, 1.0]
+        final_score = min(1.0, max(0.0, 0.7 * raw_ensemble + 0.3 * ema_score))
 
         # Determine risk level
         if final_score >= 0.8:

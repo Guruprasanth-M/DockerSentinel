@@ -16,6 +16,14 @@ from redis.asyncio import Redis
 
 from scorer import Scorer
 
+import re
+
+
+def _mask_url(url: str) -> str:
+    """Mask passwords in connection URLs for safe logging."""
+    return re.sub(r'(://[^:]*:)[^@]+(@)', r'\1*****\2', url)
+
+
 # ─── Structured logging setup ───
 structlog.configure(
     processors=[
@@ -106,6 +114,17 @@ async def process_features(redis: Redis, scorer: Scorer) -> None:
                     try:
                         features = json.loads(raw)
                     except (json.JSONDecodeError, TypeError):
+                        log.warning("ml_dead_letter", msg_id=msg_id, reason="json_decode_error")
+                        try:
+                            await redis.xadd(
+                                "sentinel:dead_letter",
+                                {"source": "ml", "msg_id": msg_id, "reason": "json_decode_error",
+                                 "data": raw[:500] if raw else "",
+                                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())},
+                                maxlen=1000, approximate=True,
+                            )
+                        except Exception:
+                            pass
                         await redis.xack(stream_name, consumer_group, msg_id)
                         continue
 
@@ -155,7 +174,7 @@ async def main() -> None:
     """Main entry point."""
     config = load_config()
 
-    log.info("ml_engine_starting", redis_url=REDIS_URL)
+    log.info("ml_engine_starting", redis_url=_mask_url(REDIS_URL))
 
     # Connect to Redis
     redis = Redis.from_url(REDIS_URL, decode_responses=True)
