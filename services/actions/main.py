@@ -35,27 +35,42 @@ shutdown_event = asyncio.Event()
 
 
 class RateLimiter:
-    """Simple sliding window rate limiter for actions."""
+    """Per-target sliding window rate limiter for actions.
+    
+    Tracks action timestamps per target IP/PID so one attacker
+    cannot exhaust the budget for all others (BUG-C07 fix).
+    Stale entries are cleaned on every call to prevent memory leaks.
+    """
     
     def __init__(self, max_per_minute: int = 5):
         self.max_per_minute = max_per_minute
-        self._timestamps: list = []
+        self._targets: dict[str, list[float]] = {}
     
-    def allow(self) -> bool:
+    def allow(self, target: str = "__global__") -> bool:
         now = time.time()
         cutoff = now - 60
-        self._timestamps = [t for t in self._timestamps if t > cutoff]
-        if len(self._timestamps) >= self.max_per_minute:
+        # Clean stale entries across all targets
+        self._cleanup(cutoff)
+        timestamps = self._targets.get(target, [])
+        timestamps = [t for t in timestamps if t > cutoff]
+        if len(timestamps) >= self.max_per_minute:
+            self._targets[target] = timestamps
             return False
-        self._timestamps.append(now)
+        timestamps.append(now)
+        self._targets[target] = timestamps
         return True
     
-    @property
-    def remaining(self) -> int:
+    def remaining(self, target: str = "__global__") -> int:
         now = time.time()
         cutoff = now - 60
-        self._timestamps = [t for t in self._timestamps if t > cutoff]
-        return max(0, self.max_per_minute - len(self._timestamps))
+        timestamps = [t for t in self._targets.get(target, []) if t > cutoff]
+        return max(0, self.max_per_minute - len(timestamps))
+
+    def _cleanup(self, cutoff: float) -> None:
+        """Remove targets with no recent timestamps to prevent memory leaks."""
+        stale = [k for k, v in self._targets.items() if not any(t > cutoff for t in v)]
+        for k in stale:
+            del self._targets[k]
 
 
 def handle_signal(sig: int) -> None:
@@ -193,12 +208,13 @@ async def process_action_requests(
                                 "status": "disabled",
                                 "message": "Actions are disabled in configuration",
                             }
-                        # Check rate limit
-                        elif not rate_limiter.allow():
-                            logger.warning("action_rate_limited", action=action, target=target)
+                        # Check rate limit per target
+                        elif not rate_limiter.allow(target):
+                            logger.warning("action_rate_limited", action=action, target=target,
+                                           remaining=rate_limiter.remaining(target))
                             result = {
                                 "status": "rate_limited",
-                                "message": f"Rate limit exceeded ({rate_limiter.max_per_minute}/min)",
+                                "message": f"Rate limit exceeded for {target} ({rate_limiter.max_per_minute}/min)",
                             }
                         else:
                             # Validate action against whitelist
