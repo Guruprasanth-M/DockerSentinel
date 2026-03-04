@@ -55,9 +55,10 @@ services:
     networks: [sentinel-net]
     entrypoint: ["/bin/bash", "/scripts/db_password_sync.sh"]
     environment:
+      # WARNING: Run main.sh first to generate .env with random passwords
       POSTGRES_DB: ${DB_NAME:-sentinel}
       POSTGRES_USER: ${DB_USER:-sentinel}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-sentinel_secret}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Run main.sh first to generate .env}
     volumes:
       - sentinel-db-data:/var/lib/postgresql/data
       - ./config/db_init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
@@ -197,7 +198,7 @@ services:
         condition: service_healthy
     environment:
       - REDIS_URL=redis://:${REDIS_PASSWORD:-sentinel_redis_pass}@redis:6379/0
-      - DB_URL=postgresql://${DB_USER:-sentinel}:${DB_PASSWORD:-sentinel_pass}@db:5432/${DB_NAME:-sentinel}
+      - DB_URL=postgresql://${DB_USER:-sentinel}:${DB_PASSWORD:?Run main.sh to generate .env}@db:5432/${DB_NAME:-sentinel}
       - SENTINEL_CONFIG=/config/sentinel.yml
       - SERVICE_NAME=policy
     volumes:
@@ -315,7 +316,7 @@ services:
       - SENTINEL_CONFIG=/config/sentinel.yml
       - SENTINEL_API_TOKEN=${SENTINEL_API_TOKEN}
       - SERVICE_NAME=api
-      - DB_URL=postgresql+asyncpg://${DB_USER:-sentinel}:${DB_PASSWORD:-sentinel_secret}@db:5432/${DB_NAME:-sentinel}
+      - DB_URL=postgresql+asyncpg://${DB_USER:-sentinel}:${DB_PASSWORD:?Run main.sh to generate .env}@db:5432/${DB_NAME:-sentinel}
     volumes:
       - sentinel-audit-data:/data/audit
       - ./config:/config:ro
@@ -369,3 +370,22 @@ services:
           memory: 128M
         reservations:
           memory: 32M
+
+  # ─── Self-healing watchdog (BUG-M14) ─────────────────────
+  autoheal:
+    image: willfarrell/autoheal:latest
+    container_name: sentinel-autoheal
+    restart: unless-stopped
+    networks: [sentinel-net]
+    environment:
+      - AUTOHEAL_CONTAINER=all
+      - AUTOHEAL_INTERVAL=30
+      - AUTOHEAL_START_PERIOD=60
+      - AUTOHEAL_DEFAULT_STOP_TIMEOUT=10
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: 64M
