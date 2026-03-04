@@ -2,6 +2,7 @@
 import asyncio
 import json
 import os
+import re
 import signal
 import time
 from pathlib import Path
@@ -25,6 +26,13 @@ structlog.configure(
 logger = structlog.get_logger("sentinel.webhooks")
 
 REDIS_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
+
+
+def _mask_url(url: str) -> str:
+    """Mask passwords in connection URLs for safe logging."""
+    return re.sub(r'(://[^:]*:)[^@]+(@)', r'\1*****\2', url)
+
+
 HEARTBEAT_INTERVAL = 30
 CONSUMER_GROUP = "webhook_service"
 CONSUMER_NAME = f"webhooks_{os.getpid()}"
@@ -267,7 +275,7 @@ async def process_alerts(client: aioredis.Redis, config: WebhookConfig):
 
 
 async def main() -> None:
-    logger.info("webhook_service_starting", version="0.1.0", redis_url=REDIS_URL)
+    logger.info("webhook_service_starting", version="0.1.0", redis_url=_mask_url(REDIS_URL))
 
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):
