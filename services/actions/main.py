@@ -6,13 +6,15 @@ import signal
 import time
 from pathlib import Path
 
+import re
+
 import redis.asyncio as aioredis
 import structlog
 import yaml
 
-from whitelist import validate_action
+from whitelist import validate_action, is_ip_protected, is_process_protected
 from ip_block import block_ip, list_blocked_ips
-from process_manager import kill_process
+from process_manager import kill_process, get_process_info
 from reversal import ReversalScheduler
 
 structlog.configure(
@@ -24,6 +26,11 @@ structlog.configure(
 )
 
 logger = structlog.get_logger("sentinel.actions")
+
+def _mask_url(url: str) -> str:
+    """Mask passwords in connection URLs for safe logging."""
+    return re.sub(r'(://[^:]*:)[^@]+(@)', r'\1*****\2', url)
+
 
 REDIS_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
 HEARTBEAT_INTERVAL = 30
@@ -268,6 +275,15 @@ async def process_action_requests(
 
                     except Exception as e:
                         logger.error("action_processing_error", msg_id=msg_id, error=str(e))
+                        try:
+                            await client.xadd(
+                                "sentinel:dead_letter",
+                                {"source": "actions", "msg_id": msg_id, "reason": str(e)[:200],
+                                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())},
+                                maxlen=1000, approximate=True,
+                            )
+                        except Exception:
+                            pass
                         await client.xack(stream, CONSUMER_GROUP, msg_id)
 
             # Yield CPU after processing a batch to prevent tight loop
@@ -283,13 +299,23 @@ async def process_action_requests(
 
 
 async def execute_action(action: str, target: str) -> dict:
-    """Execute a validated action."""
+    """Execute a validated action.
+    
+    Defense-in-depth: re-checks whitelist even though validate_action()
+    is called upstream, in case execute_action is called from a new path.
+    """
     if action == "block_ip":
+        if is_ip_protected(target):
+            return {"status": "rejected", "message": f"IP {target} is protected (whitelist)"}
         return await block_ip(target, reason="policy_triggered")
     elif action == "kill_process":
         try:
             pid = int(target)
-            return await kill_process(pid)
+            # Resolve process name and check against protected list
+            info = get_process_info(pid)
+            if is_process_protected(info.get("name", "")):
+                return {"status": "rejected", "message": f"Process '{info['name']}' (PID {pid}) is protected"}
+            return await kill_process(pid, process_name=info.get("name", ""))
         except ValueError:
             return {"status": "failed", "message": f"Invalid PID: {target}"}
     elif action == "alert_only":
@@ -299,7 +325,7 @@ async def execute_action(action: str, target: str) -> dict:
 
 
 async def main() -> None:
-    logger.info("action_engine_starting", version="0.1.0", redis_url=REDIS_URL)
+    logger.info("action_engine_starting", version="0.1.0", redis_url=_mask_url(REDIS_URL))
 
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):
