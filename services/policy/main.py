@@ -13,6 +13,14 @@ import structlog
 from engine import PolicyEngine
 from loader import PolicyLoader
 
+import re
+
+
+def _mask_url(url: str) -> str:
+    """Mask passwords in connection URLs for safe logging."""
+    return re.sub(r'(://[^:]*:)[^@]+(@)', r'\1*****\2', url)
+
+
 structlog.configure(
     processors=[
         structlog.processors.TimeStamper(fmt="iso"),
@@ -250,6 +258,15 @@ async def process_scores(client: aioredis.Redis, engine: PolicyEngine, loader: P
 
                     except Exception as e:
                         logger.error("score_processing_error", msg_id=msg_id, error=str(e))
+                        try:
+                            await client.xadd(
+                                "sentinel:dead_letter",
+                                {"source": "policy", "msg_id": msg_id, "reason": str(e)[:200],
+                                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())},
+                                maxlen=1000, approximate=True,
+                            )
+                        except Exception:
+                            pass
                         await client.xack(stream, CONSUMER_GROUP, msg_id)
 
             # Yield CPU after processing a batch to prevent tight loop
@@ -265,7 +282,7 @@ async def process_scores(client: aioredis.Redis, engine: PolicyEngine, loader: P
 
 
 async def main() -> None:
-    logger.info("policy_engine_starting", version="0.1.0", redis_url=REDIS_URL, db_url=DB_URL[:30] + "..." if DB_URL else "not_set")
+    logger.info("policy_engine_starting", version="0.1.0", redis_url=_mask_url(REDIS_URL), db_url=_mask_url(DB_URL[:60]) if DB_URL else "not_set")
 
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):
