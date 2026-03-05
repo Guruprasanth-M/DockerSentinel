@@ -77,17 +77,26 @@ export function init() {
 }
 
 /* ── Visibility throttling ──────────────────────────────── */
+let _visResumeTimer = null;
+
 function _onVisChange() {
     if (document.hidden) {
+        if (_visResumeTimer) { clearTimeout(_visResumeTimer); _visResumeTimer = null; }
         if (fastInterval) { clearInterval(fastInterval); fastInterval = null; }
         if (fullInterval) { clearInterval(fullInterval); fullInterval = null; }
         if (statusInterval) { clearInterval(statusInterval); statusInterval = null; }
     } else {
-        refreshFast();
-        refreshStatus();
-        if (!fastInterval) fastInterval = setInterval(refreshFast, FAST_MS);
-        if (!fullInterval) fullInterval = setInterval(refreshFull, FULL_MS);
-        if (!statusInterval) statusInterval = setInterval(refreshStatus, STATUS_MS);
+        // Delay HTTP fetches to let WebSocket reconnect and deliver replay first
+        // This prevents duplicate data rendering (WS replay + HTTP fetch = visual burst)
+        if (_visResumeTimer) clearTimeout(_visResumeTimer);
+        _visResumeTimer = setTimeout(function () {
+            _visResumeTimer = null;
+            refreshFast();
+            refreshStatus();
+            if (!fastInterval) fastInterval = setInterval(refreshFast, FAST_MS);
+            if (!fullInterval) fullInterval = setInterval(refreshFull, FULL_MS);
+            if (!statusInterval) statusInterval = setInterval(refreshStatus, STATUS_MS);
+        }, 800);
     }
 }
 
@@ -95,6 +104,7 @@ export function destroy() {
     document.removeEventListener('visibilitychange', _onVisChange);
     emitter.off('refresh', refreshAll);
     emitter.off('ws:status_update', handleStatusUpdate);
+    if (_visResumeTimer) { clearTimeout(_visResumeTimer); _visResumeTimer = null; }
     if (fastInterval) { clearInterval(fastInterval); fastInterval = null; }
     if (fullInterval) { clearInterval(fullInterval); fullInterval = null; }
     if (statusInterval) { clearInterval(statusInterval); statusInterval = null; }

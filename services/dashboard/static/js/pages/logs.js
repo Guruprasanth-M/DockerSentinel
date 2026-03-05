@@ -67,13 +67,21 @@ async function populateSources(selectEl) {
     } catch (_) { /* keep static fallback */ }
 }
 
+var _logVisTimer = null;
+
 function handleVisibility() {
     paused = document.hidden;
     if (document.hidden) {
+        if (_logVisTimer) { clearTimeout(_logVisTimer); _logVisTimer = null; }
         if (interval) { clearInterval(interval); interval = null; }
     } else {
-        refresh();
-        if (!interval) interval = setInterval(refresh, POLL_MS);
+        // Delay refresh to let WS reconnect and deliver replay first
+        if (_logVisTimer) clearTimeout(_logVisTimer);
+        _logVisTimer = setTimeout(function () {
+            _logVisTimer = null;
+            refresh();
+            if (!interval) interval = setInterval(refresh, POLL_MS);
+        }, 800);
     }
 }
 
@@ -116,13 +124,19 @@ export function destroy() {
     emitter.off('refresh', refresh);
     emitter.off('ws:log_event', handleLogEvent);
     if (interval) { clearInterval(interval); interval = null; }
+    if (_logBatchTimer) { clearTimeout(_logBatchTimer); _logBatchTimer = null; }
+    if (_logVisTimer) { clearTimeout(_logVisTimer); _logVisTimer = null; }
     clearTimeout(searchDebounce);
     document.removeEventListener('visibilitychange', handleVisibility);
     lastHash = '';
     logEntries = [];
+    _logBatchQueue = [];
 }
 
 /* ── WebSocket real-time log event ──────────────────────── */
+
+var _logBatchQueue = [];
+var _logBatchTimer = null;
 
 function handleLogEvent(data) {
     if (paused || !qs('#logTerminal')) return;
@@ -143,20 +157,40 @@ function handleLogEvent(data) {
     var search = parseSearch(searchInput ? searchInput.value.trim() : '');
     if (!matchesSearch(data, search)) return;
 
-    var terminal = qs('#logTerminal');
-    var div = document.createElement('div');
-    div.className = 'log-line card-enter';
-    var message = data.message || data.msg || '';
-    var ts = data.timestamp ? formatTime(data.timestamp) : '';
-    var escapedMsg = escapeHtml(message);
-    if (search) escapedMsg = highlightMatch(escapedMsg, search);
+    // Queue for batched DOM append — prevents rapid visual burst on WS replay
+    _logBatchQueue.push({ data: data, search: search });
+    if (!_logBatchTimer) {
+        _logBatchTimer = setTimeout(_flushLogBatch, 200);
+    }
+}
 
-    div.innerHTML =
-        '<span class="log-time">' + ts + '</span>' +
-        '<span class="log-level log-level--' + level + '">' + level.toUpperCase().padEnd(5) + '</span>' +
-        '<span class="log-source">[' + escapeHtml(source) + ']</span> ' +
-        '<span class="log-msg">' + escapedMsg + '</span>';
-    terminal.appendChild(div);
+function _flushLogBatch() {
+    _logBatchTimer = null;
+    var terminal = qs('#logTerminal');
+    if (!terminal || !_logBatchQueue.length) { _logBatchQueue = []; return; }
+
+    var frag = document.createDocumentFragment();
+    _logBatchQueue.forEach(function (item) {
+        var data = item.data;
+        var search = item.search;
+        var div = document.createElement('div');
+        div.className = 'log-line card-enter';
+        var message = data.message || data.msg || '';
+        var ts = data.timestamp ? formatTime(data.timestamp) : '';
+        var level = data.level || 'info';
+        var source = data.source || 'system';
+        var escapedMsg = escapeHtml(message);
+        if (search) escapedMsg = highlightMatch(escapedMsg, search);
+
+        div.innerHTML =
+            '<span class="log-time">' + ts + '</span>' +
+            '<span class="log-level log-level--' + level + '">' + level.toUpperCase().padEnd(5) + '</span>' +
+            '<span class="log-source">[' + escapeHtml(source) + ']</span> ' +
+            '<span class="log-msg">' + escapedMsg + '</span>';
+        frag.appendChild(div);
+    });
+    terminal.appendChild(frag);
+    _logBatchQueue = [];
 
     while (terminal.children.length > MAX_LOG_ENTRIES) {
         terminal.removeChild(terminal.firstChild);

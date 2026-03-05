@@ -18,12 +18,20 @@ export function init() {
     interval = setInterval(refresh, POLL_MS); // Fallback polling
 }
 
+var _metricsVisTimer = null;
+
 function _onVisChange() {
     if (document.hidden) {
+        if (_metricsVisTimer) { clearTimeout(_metricsVisTimer); _metricsVisTimer = null; }
         if (interval) { clearInterval(interval); interval = null; }
     } else {
-        refresh();
-        if (!interval) interval = setInterval(refresh, POLL_MS);
+        // Delay refresh to let WS reconnect and deliver replay first
+        if (_metricsVisTimer) clearTimeout(_metricsVisTimer);
+        _metricsVisTimer = setTimeout(function () {
+            _metricsVisTimer = null;
+            refresh();
+            if (!interval) interval = setInterval(refresh, POLL_MS);
+        }, 800);
     }
 }
 
@@ -32,6 +40,7 @@ export function destroy() {
     emitter.off('refresh', refresh);
     emitter.off('ws:status_update', handleStatusUpdate);
     if (interval) { clearInterval(interval); interval = null; }
+    if (_metricsVisTimer) { clearTimeout(_metricsVisTimer); _metricsVisTimer = null; }
     Object.keys(charts).forEach(function (k) {
         if (charts[k]) { charts[k].dispose(); charts[k] = null; }
     });

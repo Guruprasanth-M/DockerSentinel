@@ -8,6 +8,11 @@ const MAX_DELAY = 30000;
 
 export function connect(token) {
     _savedToken = token;
+    // Cancel any pending reconnect to prevent overlapping connection attempts
+    if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+    }
     if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
         return;
     }

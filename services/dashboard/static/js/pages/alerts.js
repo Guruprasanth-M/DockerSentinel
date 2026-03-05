@@ -40,12 +40,20 @@ export function init() {
     interval = setInterval(refresh, POLL_MS);
 }
 
+var _alertVisTimer = null;
+
 function _onVisChange() {
     if (document.hidden) {
+        if (_alertVisTimer) { clearTimeout(_alertVisTimer); _alertVisTimer = null; }
         if (interval) { clearInterval(interval); interval = null; }
     } else {
-        refresh();
-        if (!interval) interval = setInterval(refresh, POLL_MS);
+        // Delay refresh to let WS reconnect and deliver replay first
+        if (_alertVisTimer) clearTimeout(_alertVisTimer);
+        _alertVisTimer = setTimeout(function () {
+            _alertVisTimer = null;
+            refresh();
+            if (!interval) interval = setInterval(refresh, POLL_MS);
+        }, 800);
     }
 }
 
@@ -54,15 +62,24 @@ export function destroy() {
     emitter.off('refresh', refresh);
     emitter.off('ws:alert', handleWsAlert);
     if (interval) { clearInterval(interval); interval = null; }
+    if (_alertBatchTimer) { clearTimeout(_alertBatchTimer); _alertBatchTimer = null; }
+    if (_alertVisTimer) { clearTimeout(_alertVisTimer); _alertVisTimer = null; }
     currentAlerts = [];
 }
 
+var _alertBatchTimer = null;
+
 function handleWsAlert(data) {
     if (!qs('#alertTimeline')) return;
-    // Prepend new alert to the list and re-render
+    // Prepend new alert to the list
     currentAlerts.unshift(data);
     if (currentAlerts.length > 200) currentAlerts.pop();
-    renderTimeline(currentAlerts);
+    // Debounce render — batch rapid WS replay alerts into single re-render
+    if (_alertBatchTimer) return;
+    _alertBatchTimer = setTimeout(function () {
+        _alertBatchTimer = null;
+        renderTimeline(currentAlerts);
+    }, 300);
 }
 
 var debounceTimer = null;
