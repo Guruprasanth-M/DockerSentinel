@@ -201,6 +201,8 @@ async def _run_command(cmd: list, use_nsenter: bool = True) -> dict:
             "stderr": stderr.decode("utf-8", errors="replace"),
         }
     except asyncio.TimeoutError:
+        proc.kill()
+        await proc.wait()
         return {"returncode": -1, "stdout": "", "stderr": "Command timed out"}
     except FileNotFoundError:
         raise

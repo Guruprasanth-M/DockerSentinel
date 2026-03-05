@@ -153,6 +153,8 @@ async def run(redis: Redis, window_seconds: int = 5) -> None:
                     block=int(window_seconds * 1000),
                 )
 
+            if not results:
+                continue
             for stream_key, messages in results:
                 stream_name_str = stream_key if isinstance(stream_key, str) else stream_key.decode()
                 for msg_id, fields in messages:

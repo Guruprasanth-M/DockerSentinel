@@ -63,12 +63,14 @@ class CollectorState:
             self._positions = {}
 
     def save(self) -> None:
-        """Persist positions to disk."""
+        """Persist positions to disk atomically (write tmp + rename)."""
         try:
             os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
             data = {k: v.to_dict() for k, v in self._positions.items()}
-            with open(STATE_FILE, "w") as f:
+            tmp_file = STATE_FILE + ".tmp"
+            with open(tmp_file, "w") as f:
                 json.dump(data, f, indent=2)
+            os.replace(tmp_file, STATE_FILE)
             self._last_save_time = time.time()
             self._events_since_save = 0
         except Exception as e:

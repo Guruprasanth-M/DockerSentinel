@@ -110,10 +110,16 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         # H3: Payload size limit — reject oversized request bodies
         content_length = request.headers.get("content-length")
-        if content_length and int(content_length) > MAX_PAYLOAD_BYTES:
+        try:
+            if content_length and int(content_length) > MAX_PAYLOAD_BYTES:
+                return JSONResponse(
+                    status_code=413,
+                    content={"detail": f"Request body too large. Max {MAX_PAYLOAD_BYTES} bytes."},
+                )
+        except (ValueError, TypeError):
             return JSONResponse(
-                status_code=413,
-                content={"detail": f"Request body too large. Max {MAX_PAYLOAD_BYTES} bytes."},
+                status_code=400,
+                content={"detail": "Invalid Content-Length header"},
             )
 
         # TODO: Replace with role-based auth when user management is implemented
