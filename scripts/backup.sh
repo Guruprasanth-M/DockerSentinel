@@ -57,9 +57,33 @@ echo "Restarting stack..."
 docker compose up -d
 
 BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
+
+# Generate SHA256 checksum for integrity verification
+echo "Generating checksum..."
+CHECKSUM_FILE="${BACKUP_FILE}.sha256"
+sha256sum "$BACKUP_FILE" > "$CHECKSUM_FILE"
+echo "  Checksum: $(cat "$CHECKSUM_FILE" | cut -d' ' -f1)"
+
+# Verify archive integrity
+echo "Verifying archive..."
+if tar -tzf "$BACKUP_FILE" > /dev/null 2>&1; then
+    echo "  Archive integrity: OK"
+else
+    echo "  WARNING: Archive integrity check FAILED"
+fi
+
+# Backup rotation — keep last 10 backups
+BACKUP_COUNT=$(ls -1 "$BACKUP_DIR"/sentinel_backup_*.tar.gz 2>/dev/null | wc -l)
+if [ "$BACKUP_COUNT" -gt 10 ]; then
+    REMOVE_COUNT=$((BACKUP_COUNT - 10))
+    echo "Rotating backups (removing $REMOVE_COUNT oldest)..."
+    ls -1t "$BACKUP_DIR"/sentinel_backup_*.tar.gz | tail -n "$REMOVE_COUNT" | while read -r old_backup; do
+        rm -f "$old_backup" "${old_backup}.sha256"
+        echo "  Removed: $(basename "$old_backup")"
+    done
+fi
+
 echo "=== Backup Complete ==="
-# TODO: Add backup integrity verification (checksum) after archive creation
-# TODO: Implement backup rotation — delete backups older than N days
-# TODO: Add optional upload to S3/GCS for offsite backup
 echo "File: $BACKUP_FILE"
 echo "Size: $BACKUP_SIZE"
+echo "Checksum: $CHECKSUM_FILE"
