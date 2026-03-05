@@ -3,9 +3,11 @@ import * as emitter from './emitter.js';
 let ws = null;
 let reconnectTimer = null;
 let reconnectDelay = 1000;
+let _savedToken = null;
 const MAX_DELAY = 30000;
 
 export function connect(token) {
+    _savedToken = token;
     if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
         return;
     }
@@ -82,3 +84,13 @@ export function send(data) {
         ws.send(JSON.stringify(data));
     }
 }
+
+// Disconnect WebSocket when tab is hidden, reconnect when visible
+// Saves bandwidth and server resources for background tabs
+document.addEventListener('visibilitychange', function () {
+    if (document.hidden) {
+        disconnect();
+    } else if (_savedToken !== null) {
+        connect(_savedToken);
+    }
+});
