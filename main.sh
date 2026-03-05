@@ -2,7 +2,15 @@
 # ============================================================================
 #  Docker Sentinel — One-Command Installer & Launcher
 #
-#  Usage:  chmod +x main.sh && ./main.sh
+#  Usage:  chmod +x main.sh && ./main.sh [command]
+#
+#  Commands:
+#    start     Install dependencies and start the stack (default)
+#    stop      Stop all containers
+#    restart   Restart all containers
+#    destroy   Stop, remove volumes, and delete images
+#    status    Show container status and API health
+#    logs      Show recent logs (optionally for a specific service)
 #
 #  This script handles EVERYTHING:
 #    • Checks & installs system dependencies (Docker, Docker Compose, Python, pip)
@@ -900,9 +908,98 @@ print_summary() {
     echo ""
 }
 
+# ── Subcommands ──────────────────────────────────────────────────────────────
+
+cmd_stop() {
+    log_step "Stopping Docker Sentinel..."
+    cd "$PROJECT_DIR"
+    docker compose stop 2>/dev/null || true
+    log_success "Stack stopped."
+}
+
+cmd_restart() {
+    log_step "Restarting Docker Sentinel..."
+    cd "$PROJECT_DIR"
+    docker compose restart 2>/dev/null || true
+    log_success "Stack restarted. Waiting for health checks..."
+    sleep 10
+    docker compose ps --format "table {{.Name}}\t{{.Status}}"
+}
+
+cmd_destroy() {
+    log_warn "This will stop all containers, remove volumes, and delete built images."
+    read -p "Are you sure? (y/N) " -n 1 -r
+    echo ""
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        log_info "Destroy cancelled."
+        return
+    fi
+    log_step "Destroying Docker Sentinel..."
+    cd "$PROJECT_DIR"
+    docker compose down -v --rmi local 2>/dev/null || true
+    log_success "Stack destroyed. Data volumes removed. Run ./main.sh to reinstall."
+}
+
+cmd_status() {
+    log_step "Docker Sentinel Status"
+    cd "$PROJECT_DIR"
+    echo ""
+    docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || {
+        log_warn "Stack not running."
+        return
+    }
+    echo ""
+    # Check API health
+    local health
+    health=$(curl -sf "http://localhost:${DASHBOARD_PORT}/api/health" 2>/dev/null) || {
+        log_warn "API not responding."
+        return
+    }
+    echo -e "${BOLD}API Health:${NC}"
+    echo "$health" | python3 -m json.tool 2>/dev/null || echo "$health"
+}
+
+cmd_logs() {
+    local service="${1:-}"
+    cd "$PROJECT_DIR"
+    if [ -n "$service" ]; then
+        docker compose logs --tail 50 "$service"
+    else
+        docker compose logs --tail 20
+    fi
+}
+
 # ── Main Execution ───────────────────────────────────────────────────────────
 
 main() {
+    local cmd="${1:-start}"
+    shift 2>/dev/null || true
+
+    case "$cmd" in
+        stop)     cmd_stop ;;
+        restart)  cmd_restart ;;
+        destroy)  cmd_destroy ;;
+        status)   cmd_status ;;
+        logs)     cmd_logs "$@" ;;
+        start|"")
+            # Full install/start flow
+            _run_install
+            ;;
+        *)
+            echo "Usage: $0 {start|stop|restart|destroy|status|logs [service]}"
+            echo ""
+            echo "  start     Install dependencies and start the stack (default)"
+            echo "  stop      Stop all containers"
+            echo "  restart   Restart all containers"
+            echo "  destroy   Stop, remove volumes, and delete images"
+            echo "  status    Show container status and API health"
+            echo "  logs      Show recent logs (optionally for a specific service)"
+            exit 1
+            ;;
+    esac
+}
+
+_run_install() {
     # Initialize log file
     echo "=== Docker Sentinel Installation — $(date) ===" > "$LOG_FILE"
 
