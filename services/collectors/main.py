@@ -63,17 +63,20 @@ def load_config() -> dict:
 
 
 async def supervisor(name: str, coro_factory, *args) -> None:
-    """Supervisor loop — restarts a coroutine on crash."""
+    """Supervisor loop — restarts a coroutine on crash with exponential backoff."""
+    backoff = 2
     while True:
         try:
             log.info("supervisor_starting", component=name)
             await coro_factory(*args)
+            backoff = 2  # Reset on clean exit
         except asyncio.CancelledError:
             log.info("supervisor_cancelled", component=name)
             raise
         except Exception as e:
-            log.error("supervisor_crash", component=name, error=str(e))
-            await asyncio.sleep(2)
+            log.error("supervisor_crash", component=name, error=str(e), backoff=backoff)
+            await asyncio.sleep(backoff)
+            backoff = min(backoff * 2, 60)
 
 
 async def main() -> None:
@@ -87,13 +90,20 @@ async def main() -> None:
 
     log.info("collectors_starting", redis_url=_mask_url(REDIS_URL))
 
-    # Connect to Redis
-    redis = Redis.from_url(REDIS_URL, decode_responses=True)
-    try:
-        await redis.ping()
-        log.info("redis_connected")
-    except Exception as e:
-        log.error("redis_connection_failed", error=str(e))
+    # Connect to Redis with retry
+    redis = None
+    for attempt in range(30):
+        try:
+            redis = Redis.from_url(REDIS_URL, decode_responses=True)
+            await redis.ping()
+            log.info("redis_connected")
+            break
+        except Exception as e:
+            delay = min(2 ** attempt, 60)
+            log.warning("redis_connection_retry", attempt=attempt + 1, delay=delay, error=str(e))
+            await asyncio.sleep(delay)
+    else:
+        log.error("redis_connection_failed", attempts=30)
         sys.exit(1)
 
     # Initialize state

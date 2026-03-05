@@ -166,8 +166,10 @@ async def process_features(redis: Redis, scorer: Scorer) -> None:
         except asyncio.CancelledError:
             raise
         except Exception as e:
-            log.error("scoring_error", error=str(e))
-            await asyncio.sleep(2)
+            _backoff = min(getattr(process_features, '_backoff', 1) * 2, 60)
+            process_features._backoff = _backoff
+            log.error("scoring_error", error=str(e), backoff=_backoff)
+            await asyncio.sleep(_backoff)
 
 
 async def main() -> None:
@@ -176,13 +178,20 @@ async def main() -> None:
 
     log.info("ml_engine_starting", redis_url=_mask_url(REDIS_URL))
 
-    # Connect to Redis
-    redis = Redis.from_url(REDIS_URL, decode_responses=True)
-    try:
-        await redis.ping()
-        log.info("redis_connected")
-    except Exception as e:
-        log.error("redis_connection_failed", error=str(e))
+    # Connect to Redis with retry
+    redis = None
+    for attempt in range(30):
+        try:
+            redis = Redis.from_url(REDIS_URL, decode_responses=True)
+            await redis.ping()
+            log.info("redis_connected")
+            break
+        except Exception as e:
+            delay = min(2 ** attempt, 60)
+            log.warning("redis_connection_retry", attempt=attempt + 1, delay=delay, error=str(e))
+            await asyncio.sleep(delay)
+    else:
+        log.error("redis_connection_failed", attempts=30)
         sys.exit(1)
 
     # Load scorer

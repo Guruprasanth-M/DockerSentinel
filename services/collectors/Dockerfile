@@ -12,4 +12,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# NOTE: Runs as root — needs access to host /proc and restricted log files
+
 CMD ["python", "-u", "main.py"]
