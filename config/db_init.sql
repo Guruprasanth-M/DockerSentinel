@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS alerts (
 );
 
 CREATE INDEX IF NOT EXISTS idx_alerts_severity ON alerts(severity);
-CREATE INDEX IF NOT EXISTS idx_alerts_created_at ON alerts(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_alerts_created_at ON alerts USING brin(created_at);
 CREATE INDEX IF NOT EXISTS idx_alerts_score ON alerts(score);
 
 -- ─── Actions Table ────────────────────────────────────────
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS actions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_actions_status ON actions(status);
-CREATE INDEX IF NOT EXISTS idx_actions_created_at ON actions(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_actions_created_at ON actions USING brin(created_at);
 CREATE INDEX IF NOT EXISTS idx_actions_alert_id ON actions(alert_id);
 
 -- ─── Scores History Table ─────────────────────────────────
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS scores (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_scores_created_at ON scores(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_scores_created_at ON scores USING brin(created_at);
 CREATE INDEX IF NOT EXISTS idx_scores_score ON scores(score);
 
 -- ─── Audit Log Table ──────────────────────────────────────
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_audit_event_type ON audit_log(event_type);
-CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit_log USING brin(created_at);
 
 -- ─── Webhook Deliveries Table ─────────────────────────────
 CREATE TABLE IF NOT EXISTS webhook_deliveries (
@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS webhook_deliveries (
 );
 
 CREATE INDEX IF NOT EXISTS idx_webhook_status ON webhook_deliveries(status);
-CREATE INDEX IF NOT EXISTS idx_webhook_created_at ON webhook_deliveries(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_webhook_created_at ON webhook_deliveries USING brin(created_at);
 
 -- ─── Host Metrics Snapshots ───────────────────────────────
 CREATE TABLE IF NOT EXISTS host_metrics (
@@ -106,10 +106,42 @@ CREATE TABLE IF NOT EXISTS host_metrics (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_host_metrics_created_at ON host_metrics(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_host_metrics_created_at ON host_metrics USING brin(created_at);
 
 -- ─── Data Retention: Auto-cleanup old rows ────────────────
--- Run via pg_cron or external cron: DELETE FROM scores WHERE created_at < NOW() - INTERVAL '30 days';
+-- Retention function: call via pg_cron or external cron daily
+-- Usage: SELECT sentinel_retention_cleanup();
+CREATE OR REPLACE FUNCTION sentinel_retention_cleanup()
+RETURNS TABLE(table_name TEXT, rows_deleted BIGINT) AS $$
+BEGIN
+    -- Scores: keep 30 days
+    DELETE FROM scores WHERE created_at < NOW() - INTERVAL '30 days';
+    RETURN QUERY SELECT 'scores'::TEXT, (SELECT count(*) FROM scores WHERE created_at < NOW() - INTERVAL '30 days');
+
+    -- Host metrics: keep 30 days
+    DELETE FROM host_metrics WHERE created_at < NOW() - INTERVAL '30 days';
+    RETURN QUERY SELECT 'host_metrics'::TEXT, 0::BIGINT;
+
+    -- Webhook deliveries: keep 90 days
+    DELETE FROM webhook_deliveries WHERE created_at < NOW() - INTERVAL '90 days';
+    RETURN QUERY SELECT 'webhook_deliveries'::TEXT, 0::BIGINT;
+
+    -- Audit log: keep 180 days
+    DELETE FROM audit_log WHERE created_at < NOW() - INTERVAL '180 days';
+    RETURN QUERY SELECT 'audit_log'::TEXT, 0::BIGINT;
+
+    -- Alerts: keep 180 days
+    DELETE FROM alerts WHERE created_at < NOW() - INTERVAL '180 days';
+    RETURN QUERY SELECT 'alerts'::TEXT, 0::BIGINT;
+
+    -- Actions: keep 180 days
+    DELETE FROM actions WHERE created_at < NOW() - INTERVAL '180 days';
+    RETURN QUERY SELECT 'actions'::TEXT, 0::BIGINT;
+END;
+$$ LANGUAGE plpgsql;
+
+-- To schedule daily: add to host crontab:
+-- 0 3 * * * docker compose -f /path/to/docker-compose.yml exec -T db psql -U sentinel -c "SELECT sentinel_retention_cleanup();"
 
 -- ─── Helper view: Recent alerts summary ───────────────────
 CREATE OR REPLACE VIEW recent_alerts AS
