@@ -463,7 +463,10 @@ DB_USER=sentinel
 DB_PASSWORD=${db_pass}
 DB_URL=postgresql://sentinel:${db_pass}@db:5432/sentinel
 WEBHOOK_SECRET=${webhook_secret}
+DOCKER_GID=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || echo 0)
 EOF
+        # Secure .env — contains secrets
+        chmod 600 "${PROJECT_DIR}/.env"
         # Update redis.conf with the generated password
         if [ -f "${PROJECT_DIR}/config/redis.conf" ]; then
             sed -i "s/^requirepass .*/requirepass ${redis_pass}/" "${PROJECT_DIR}/config/redis.conf"
@@ -646,7 +649,7 @@ set_permissions() {
 
     # Ensure data directories are writable
     chmod -R 755 "${PROJECT_DIR}/data" 2>/dev/null || true
-    chmod -R 755 "${PROJECT_DIR}/config" 2>/dev/null || true
+    chmod -R 750 "${PROJECT_DIR}/config" 2>/dev/null || true
     chmod -R 755 "${PROJECT_DIR}/logs" 2>/dev/null || true
 
     log_success "Permissions set"
@@ -723,7 +726,19 @@ build_images() {
 
         # Build with output going to log file but show a spinner
         local build_log="${LOG_FILE}.${svc}"
+        local build_ok=false
         if $COMPOSE_CMD build "$svc" > "$build_log" 2>&1; then
+            build_ok=true
+        else
+            # BuildKit cache corruption — prune and retry once
+            printf "\r  ${BLUE}🔄${NC} [%d/%d] %-12s retrying (cache prune)...\n" "$built" "$total" "$svc"
+            docker builder prune -f >> "$LOG_FILE" 2>&1 || true
+            if $COMPOSE_CMD build "$svc" > "$build_log" 2>&1; then
+                build_ok=true
+            fi
+        fi
+
+        if $build_ok; then
             printf "\r  ${TICK} [%d/%d] %-12s built ✓                \n" "$built" "$total" "$svc"
             rm -f "$build_log"
         else

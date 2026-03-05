@@ -90,7 +90,7 @@ services:
       - ./config/redis.conf:/etc/redis/redis.conf:ro
     command: redis-server /etc/redis/redis.conf --requirepass ${REDIS_PASSWORD:-sentinel_redis_pass}
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-sentinel_redis_pass}", "ping"]
+      test: ["CMD", "sh", "-c", "REDISCLI_AUTH=$REDIS_PASSWORD redis-cli ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -325,6 +325,8 @@ services:
       - /etc/os-release:/host_etc/os-release:ro
       - /etc/hostname:/host_etc/hostname:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    group_add:
+      - "${DOCKER_GID:-0}"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 15s
