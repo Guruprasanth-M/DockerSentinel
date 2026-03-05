@@ -42,5 +42,7 @@ def verify_signature(payload: bytes, secret: str, signature: str) -> bool:
     Returns:
         True if signature is valid
     """
+    if not secret:
+        return False
     expected = sign_payload(payload, secret)
     return hmac.compare_digest(expected, signature)

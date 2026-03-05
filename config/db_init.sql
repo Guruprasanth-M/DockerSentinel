@@ -113,30 +113,38 @@ CREATE INDEX IF NOT EXISTS idx_host_metrics_created_at ON host_metrics USING bri
 -- Usage: SELECT sentinel_retention_cleanup();
 CREATE OR REPLACE FUNCTION sentinel_retention_cleanup()
 RETURNS TABLE(table_name TEXT, rows_deleted BIGINT) AS $$
+DECLARE
+    _count BIGINT;
 BEGIN
     -- Scores: keep 30 days
     DELETE FROM scores WHERE created_at < NOW() - INTERVAL '30 days';
-    RETURN QUERY SELECT 'scores'::TEXT, (SELECT count(*) FROM scores WHERE created_at < NOW() - INTERVAL '30 days');
+    GET DIAGNOSTICS _count = ROW_COUNT;
+    RETURN QUERY SELECT 'scores'::TEXT, _count;
 
     -- Host metrics: keep 30 days
     DELETE FROM host_metrics WHERE created_at < NOW() - INTERVAL '30 days';
-    RETURN QUERY SELECT 'host_metrics'::TEXT, 0::BIGINT;
+    GET DIAGNOSTICS _count = ROW_COUNT;
+    RETURN QUERY SELECT 'host_metrics'::TEXT, _count;
 
     -- Webhook deliveries: keep 90 days
     DELETE FROM webhook_deliveries WHERE created_at < NOW() - INTERVAL '90 days';
-    RETURN QUERY SELECT 'webhook_deliveries'::TEXT, 0::BIGINT;
+    GET DIAGNOSTICS _count = ROW_COUNT;
+    RETURN QUERY SELECT 'webhook_deliveries'::TEXT, _count;
 
     -- Audit log: keep 180 days
     DELETE FROM audit_log WHERE created_at < NOW() - INTERVAL '180 days';
-    RETURN QUERY SELECT 'audit_log'::TEXT, 0::BIGINT;
+    GET DIAGNOSTICS _count = ROW_COUNT;
+    RETURN QUERY SELECT 'audit_log'::TEXT, _count;
 
     -- Alerts: keep 180 days
     DELETE FROM alerts WHERE created_at < NOW() - INTERVAL '180 days';
-    RETURN QUERY SELECT 'alerts'::TEXT, 0::BIGINT;
+    GET DIAGNOSTICS _count = ROW_COUNT;
+    RETURN QUERY SELECT 'alerts'::TEXT, _count;
 
     -- Actions: keep 180 days
     DELETE FROM actions WHERE created_at < NOW() - INTERVAL '180 days';
-    RETURN QUERY SELECT 'actions'::TEXT, 0::BIGINT;
+    GET DIAGNOSTICS _count = ROW_COUNT;
+    RETURN QUERY SELECT 'actions'::TEXT, _count;
 END;
 $$ LANGUAGE plpgsql;
 
