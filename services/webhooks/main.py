@@ -275,7 +275,7 @@ async def process_alerts(client: aioredis.Redis, config: WebhookConfig):
 
 
 async def main() -> None:
-    logger.info("webhook_service_starting", version="0.1.0", redis_url=_mask_url(REDIS_URL))
+    logger.info("webhook_service_starting", version="v0.1", redis_url=_mask_url(REDIS_URL))
 
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):

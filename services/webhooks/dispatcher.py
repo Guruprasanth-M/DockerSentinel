@@ -82,7 +82,7 @@ async def dispatch_webhook(
     # Build headers
     headers = {
         "Content-Type": "application/json",
-        "User-Agent": "DockerSentinel/0.1.0",
+        "User-Agent": "DockerSentinel/v0.1",
         "X-Sentinel-Event": payload.get("event_type", "unknown"),
         "X-Sentinel-Delivery-Id": payload.get("alert_id", ""),
     }
@@ -197,7 +197,10 @@ def format_alert_payload(alert: dict, host_name: str = "") -> dict:
     Returns a payload suitable for Slack, Discord, or generic webhooks.
     """
     severity = alert.get("severity", "medium")
-    score = alert.get("score", 0.0)
+    try:
+        score = float(alert.get("score", 0.0))
+    except (ValueError, TypeError):
+        score = 0.0
     
     severity_emoji = {
         "low": "🟢",
