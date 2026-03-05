@@ -91,11 +91,18 @@ app = FastAPI(
 )
 
 # M8: Add CORS middleware — restrict origins in production
+# Set CORS_ORIGINS env var for production (comma-separated).
+# Default allows dashboard on same host via configurable port.
 _cors_env = os.environ.get("CORS_ORIGINS", "")
 _cors_origins = [o.strip() for o in _cors_env.split(",") if o.strip()] if _cors_env else []
+_dashboard_port = os.environ.get("DASHBOARD_PORT", "8080")
+_default_origins = [
+    f"http://localhost:{_dashboard_port}",
+    f"http://127.0.0.1:{_dashboard_port}",
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_cors_origins or ["http://localhost:3000", "http://localhost:8080"],
+    allow_origins=_cors_origins or _default_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["X-Sentinel-Token", "Authorization", "Content-Type"],

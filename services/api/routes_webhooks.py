@@ -5,9 +5,11 @@ Reads and writes to /config/webhooks.yml for dynamic webhook management.
 
 from __future__ import annotations
 
+import ipaddress
 import os
 import uuid
 from typing import Any, Dict, List
+from urllib.parse import urlparse
 
 import structlog
 import yaml
@@ -20,6 +22,55 @@ router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 WEBHOOKS_CONFIG = os.environ.get("SENTINEL_CONFIG", "/config/sentinel.yml")
 WEBHOOKS_FILE = "/config/webhooks.yml"
+
+# SSRF protection — block internal/private IP ranges
+_BLOCKED_NETWORKS = [
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("127.0.0.0/8"),
+    ipaddress.ip_network("169.254.0.0/16"),  # link-local / cloud metadata
+    ipaddress.ip_network("0.0.0.0/8"),
+    ipaddress.ip_network("::1/128"),
+    ipaddress.ip_network("fc00::/7"),  # IPv6 private
+    ipaddress.ip_network("fe80::/10"),  # IPv6 link-local
+]
+
+
+def _validate_webhook_url(url: str) -> None:
+    """Validate webhook URL to prevent SSRF attacks.
+
+    Blocks: private IPs, Docker internal ranges, cloud metadata endpoints,
+    non-HTTP(S) schemes, and raw IP URLs in blocked ranges.
+    """
+    parsed = urlparse(url)
+
+    # Only allow http and https schemes
+    if parsed.scheme not in ("http", "https"):
+        raise HTTPException(status_code=400, detail=f"Invalid URL scheme: {parsed.scheme}. Only http/https allowed.")
+
+    hostname = parsed.hostname
+    if not hostname:
+        raise HTTPException(status_code=400, detail="Invalid URL: no hostname")
+
+    # Resolve hostname to check for private IPs
+    import socket
+    try:
+        addr_info = socket.getaddrinfo(hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
+        for _, _, _, _, sockaddr in addr_info:
+            ip = ipaddress.ip_address(sockaddr[0])
+            for network in _BLOCKED_NETWORKS:
+                if ip in network:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Webhook URL resolves to blocked address range ({network}). External URLs only."
+                    )
+    except socket.gaierror:
+        raise HTTPException(status_code=400, detail=f"Cannot resolve hostname: {hostname}")
+    except HTTPException:
+        raise
+    except Exception:
+        pass  # Allow through if resolution fails for other reasons
 
 
 class WebhookCreate(BaseModel):
@@ -94,6 +145,9 @@ async def create_webhook(webhook: WebhookCreate):
         if wh.get("name") == webhook.name:
             raise HTTPException(status_code=409, detail=f"Webhook '{webhook.name}' already exists")
 
+    # SSRF protection: validate URL
+    _validate_webhook_url(webhook.url)
+
     new_wh = {
         "id": str(uuid.uuid4())[:8],
         "name": webhook.name,
@@ -120,6 +174,9 @@ async def update_webhook(webhook_name: str, update: WebhookUpdate):
 
     for wh in webhooks:
         if wh.get("name") == webhook_name:
+            if update.url is not None:
+                # SSRF protection: validate URL
+                _validate_webhook_url(update.url)
             if update.name is not None:
                 wh["name"] = update.name
             if update.url is not None:
@@ -170,6 +227,9 @@ async def test_webhook(webhook_name: str):
 
     if not target:
         raise HTTPException(status_code=404, detail=f"Webhook '{webhook_name}' not found")
+
+    # SSRF protection: re-validate URL before making request
+    _validate_webhook_url(target["url"])
 
     # Import dispatcher
     try:

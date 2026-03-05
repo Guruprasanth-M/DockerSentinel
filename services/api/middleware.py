@@ -15,6 +15,7 @@ log = structlog.get_logger()
 
 RATE_LIMIT = 600  # requests per minute (external clients)
 RATE_WINDOW = 60  # seconds
+MAX_PAYLOAD_BYTES = 1_048_576  # 1 MiB max request body
 
 # Docker internal network prefixes — exempt from rate limiting
 _INTERNAL_PREFIXES = ("172.", "10.", "192.168.", "127.")
@@ -85,8 +86,18 @@ class AuthMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         method = request.method
 
-        # Get client IP
-        client_ip = request.client.host if request.client else "unknown"
+        # Get client IP — trust X-Real-IP/X-Forwarded-For only from Docker proxy
+        peer_ip = request.client.host if request.client else "unknown"
+        if peer_ip.startswith(_INTERNAL_PREFIXES):
+            # Request came from Docker network (nginx proxy) — use forwarded header
+            client_ip = (
+                request.headers.get("X-Real-IP")
+                or (request.headers.get("X-Forwarded-For", "").split(",")[0].strip())
+                or peer_ip
+            )
+        else:
+            # Direct connection — use peer address
+            client_ip = peer_ip
 
         # H2: Redis-backed rate limiting (skip internal Docker network)
         redis_client = getattr(request.app.state, "redis", None)
@@ -96,6 +107,14 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 return JSONResponse(
                     status_code=429, content={"detail": "Rate limit exceeded"}
                 )
+
+        # H3: Payload size limit — reject oversized request bodies
+        content_length = request.headers.get("content-length")
+        if content_length and int(content_length) > MAX_PAYLOAD_BYTES:
+            return JSONResponse(
+                status_code=413,
+                content={"detail": f"Request body too large. Max {MAX_PAYLOAD_BYTES} bytes."},
+            )
 
         # TODO: Replace with role-based auth when user management is implemented
         # (admin = read/write all, user = read-only, no actions)
