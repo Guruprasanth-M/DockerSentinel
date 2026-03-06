@@ -282,7 +282,7 @@ async def process_scores(client: aioredis.Redis, engine: PolicyEngine, loader: P
 
 
 async def main() -> None:
-    logger.info("policy_engine_starting", version="v0.1", redis_url=_mask_url(REDIS_URL), db_url=_mask_url(DB_URL[:60]) if DB_URL else "not_set")
+    logger.info("policy_engine_starting", version="v0.2", redis_url=_mask_url(REDIS_URL), db_url=_mask_url(DB_URL[:60]) if DB_URL else "not_set")
 
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):

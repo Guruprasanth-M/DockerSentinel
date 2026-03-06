@@ -45,7 +45,7 @@ WARN="${YELLOW}⚠${NC}"
 PROJECT_NAME="Docker Sentinel"
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DASHBOARD_PORT="${DASHBOARD_PORT:-8080}"
-SENTINEL_VERSION="0.1.0"
+SENTINEL_VERSION="0.2.0"
 LOG_FILE="${PROJECT_DIR}/install.log"
 
 # ── Helper Functions ─────────────────────────────────────────────────────────
@@ -483,7 +483,7 @@ EOF
     # Create sentinel.yml from example if not present
     if [ ! -f "${PROJECT_DIR}/config/sentinel.yml" ]; then
         cat > "${PROJECT_DIR}/config/sentinel.yml" << EOF
-version: "0.1"
+version: "0.2"
 
 sentinel:
   # API token loaded from SENTINEL_API_TOKEN env var — do NOT hardcode
@@ -529,7 +529,7 @@ EOF
     if [ ! -f "${PROJECT_DIR}/config/policies.yml" ]; then
         cp "${PROJECT_DIR}/config/policies.yml.example" "${PROJECT_DIR}/config/policies.yml" 2>/dev/null || \
         cat > "${PROJECT_DIR}/config/policies.yml" << 'EOF'
-version: "0.1"
+version: "0.2"
 
 policies:
   - name: brute_force_block
@@ -595,7 +595,7 @@ EOF
     if [ ! -f "${PROJECT_DIR}/config/webhooks.yml" ]; then
         cp "${PROJECT_DIR}/config/webhooks.yml.example" "${PROJECT_DIR}/config/webhooks.yml" 2>/dev/null || \
         cat > "${PROJECT_DIR}/config/webhooks.yml" << 'EOF'
-version: "0.1"
+version: "0.2"
 
 # Webhook secret for HMAC-SHA256 payload signing
 webhook_secret: "change-this-to-a-secure-secret"

@@ -20,7 +20,7 @@ class ServiceHealth(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str = "healthy"
-    version: str = "v0.1"
+    version: str = "v0.2"
     services: ServiceHealth = Field(default_factory=ServiceHealth)
     uptime_seconds: int = 0
     model_version: str = "v1_pretrained"

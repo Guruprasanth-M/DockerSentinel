@@ -3,7 +3,7 @@
 # Then update api_token with a generated token:
 #   python3 -c "import secrets; print(secrets.token_hex(32))"
 
-version: "0.1"
+version: "0.2"
 
 sentinel:
   # REQUIRED — Generate with: python3 -c "import secrets; print(secrets.token_hex(32))"

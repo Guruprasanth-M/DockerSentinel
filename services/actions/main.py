@@ -325,7 +325,7 @@ async def execute_action(action: str, target: str) -> dict:
 
 
 async def main() -> None:
-    logger.info("action_engine_starting", version="v0.1", redis_url=_mask_url(REDIS_URL))
+    logger.info("action_engine_starting", version="v0.2", redis_url=_mask_url(REDIS_URL))
 
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):

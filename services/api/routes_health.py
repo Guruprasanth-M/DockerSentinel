@@ -219,7 +219,7 @@ async def health(request: Request):
 
     return HealthResponse(
         status="healthy" if services.redis == "connected" else "degraded",
-        version="v0.1",
+        version="v0.2",
         services=services,
         uptime_seconds=uptime,
     )

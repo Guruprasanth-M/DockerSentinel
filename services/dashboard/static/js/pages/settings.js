@@ -69,15 +69,15 @@ async function refresh() {
 function renderVersions(health) {
     var svc = health.services || {};
     var services = [
-        { name: 'API Server', version: health.version || 'v0.1', status: svc.api === 'healthy' ? 'running' : 'stopped' },
+        { name: 'API Server', version: health.version || 'v0.2', status: svc.api === 'healthy' ? 'running' : 'stopped' },
         { name: 'Database', version: '16-alpine', status: svc.db === 'connected' ? 'running' : 'stopped' },
-        { name: 'Collectors', version: 'v0.1', status: svc.collectors === 'active' || svc.collectors === 'unknown' ? 'running' : 'stopped' },
-        { name: 'ML Engine', version: 'v0.1', status: svc.ml_engine === 'active' ? 'running' : 'stopped' },
-        { name: 'Policy Engine', version: 'v0.1', status: svc.policy_engine === 'active' ? 'running' : 'stopped' },
-        { name: 'Action Engine', version: 'v0.1', status: svc.action_engine === 'active' ? 'running' : 'stopped' },
-        { name: 'Webhook Service', version: 'v0.1', status: svc.webhook_service === 'active' ? 'running' : 'stopped' },
+        { name: 'Collectors', version: 'v0.2', status: svc.collectors === 'active' || svc.collectors === 'unknown' ? 'running' : 'stopped' },
+        { name: 'ML Engine', version: 'v0.2', status: svc.ml_engine === 'active' ? 'running' : 'stopped' },
+        { name: 'Policy Engine', version: 'v0.2', status: svc.policy_engine === 'active' ? 'running' : 'stopped' },
+        { name: 'Action Engine', version: 'v0.2', status: svc.action_engine === 'active' ? 'running' : 'stopped' },
+        { name: 'Webhook Service', version: 'v0.2', status: svc.webhook_service === 'active' ? 'running' : 'stopped' },
         { name: 'Redis', version: '7.2', status: svc.redis === 'connected' ? 'running' : 'stopped' },
-        { name: 'Dashboard', version: 'v0.1', status: 'running' },
+        { name: 'Dashboard', version: 'v0.2', status: 'running' },
     ];
 
     var now = new Date().toLocaleTimeString();

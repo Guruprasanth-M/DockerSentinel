@@ -82,7 +82,7 @@ async def dispatch_webhook(
     # Build headers
     headers = {
         "Content-Type": "application/json",
-        "User-Agent": "DockerSentinel/v0.1",
+        "User-Agent": "DockerSentinel/v0.2",
         "X-Sentinel-Event": payload.get("event_type", "unknown"),
         "X-Sentinel-Delivery-Id": payload.get("alert_id", ""),
     }
