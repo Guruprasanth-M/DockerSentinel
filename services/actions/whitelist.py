@@ -3,7 +3,7 @@ import ipaddress
 import structlog
 from typing import Set
 
-logger = structlog.get_logger("sentinel.actions.whitelist")
+logger = structlog.get_logger("hostspectra.actions.whitelist")
 
 # Ports that can never be blocked
 PROTECTED_PORTS: Set[int] = {

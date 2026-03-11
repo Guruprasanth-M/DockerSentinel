@@ -1,16 +1,16 @@
 #!/bin/bash
-# backup.sh — Create a backup archive of all Docker Sentinel data
+# backup.sh — Create a backup archive of all HostSpectra data
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_DIR="$PROJECT_DIR/backups"
-BACKUP_FILE="$BACKUP_DIR/sentinel_backup_${TIMESTAMP}.tar.gz"
+BACKUP_FILE="$BACKUP_DIR/hostspectra_backup_${TIMESTAMP}.tar.gz"
 
 mkdir -p "$BACKUP_DIR"
 
-echo "=== Docker Sentinel Backup ==="
+echo "=== HostSpectra Backup ==="
 echo "Timestamp: $TIMESTAMP"
 echo "Backup file: $BACKUP_FILE"
 
@@ -18,7 +18,7 @@ echo "Backup file: $BACKUP_FILE"
 echo "Dumping PostgreSQL database..."
 DB_DUMP="$BACKUP_DIR/db_dump_${TIMESTAMP}.sql"
 if docker compose -f "$PROJECT_DIR/docker-compose.yml" exec -T db \
-    pg_dump -U "${DB_USER:-sentinel}" "${DB_NAME:-sentinel}" > "$DB_DUMP" 2>/dev/null; then
+    pg_dump -U "${DB_USER:-hostspectra}" "${DB_NAME:-hostspectra}" > "$DB_DUMP" 2>/dev/null; then
     echo "  Database dump created ($(du -h "$DB_DUMP" | cut -f1))"
 else
     echo "  Warning: Database dump failed (container may not be running)"
@@ -40,7 +40,7 @@ tar -czf "$BACKUP_FILE" \
     data/collector-state/ \
     data/db/ \
     config/ \
-    --transform="s|^|sentinel_backup_${TIMESTAMP}/|" \
+    --transform="s|^|hostspectra_backup_${TIMESTAMP}/|" \
     2>/dev/null || true
 
 # Add DB dump: decompress, append, recompress (tar cannot append to .gz directly)
@@ -73,11 +73,11 @@ else
 fi
 
 # Backup rotation — keep last 10 backups
-BACKUP_COUNT=$(ls -1 "$BACKUP_DIR"/sentinel_backup_*.tar.gz 2>/dev/null | wc -l)
+BACKUP_COUNT=$(ls -1 "$BACKUP_DIR"/hostspectra_backup_*.tar.gz 2>/dev/null | wc -l)
 if [ "$BACKUP_COUNT" -gt 10 ]; then
     REMOVE_COUNT=$((BACKUP_COUNT - 10))
     echo "Rotating backups (removing $REMOVE_COUNT oldest)..."
-    ls -1t "$BACKUP_DIR"/sentinel_backup_*.tar.gz | tail -n "$REMOVE_COUNT" | while read -r old_backup; do
+    ls -1t "$BACKUP_DIR"/hostspectra_backup_*.tar.gz | tail -n "$REMOVE_COUNT" | while read -r old_backup; do
         rm -f "$old_backup" "${old_backup}.sha256"
         echo "  Removed: $(basename "$old_backup")"
     done

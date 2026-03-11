@@ -20,7 +20,7 @@ except ImportError:
 
 from signer import sign_payload
 
-logger = structlog.get_logger("sentinel.webhooks.dispatcher")
+logger = structlog.get_logger("hostspectra.webhooks.dispatcher")
 
 # Retry schedule: 1s, 2s, 4s, 8s, 16s
 MAX_RETRIES = 5
@@ -82,7 +82,7 @@ async def dispatch_webhook(
     # Build headers
     headers = {
         "Content-Type": "application/json",
-        "User-Agent": "DockerSentinel/v0.2",
+        "User-Agent": "HostSpectra/v0.2",
         "X-Sentinel-Event": payload.get("event_type", "unknown"),
         "X-Sentinel-Delivery-Id": payload.get("alert_id", ""),
     }
@@ -225,12 +225,12 @@ def format_alert_payload(alert: dict, host_name: str = "") -> dict:
         "message": alert.get("message", ""),
         "host": host_name,
         # Slack-compatible format
-        "text": f"{emoji} *[{severity.upper()}]* Docker Sentinel Alert on {host_name or 'server'}\n"
+        "text": f"{emoji} *[{severity.upper()}]* HostSpectra Alert on {host_name or 'server'}\n"
                 f"Score: {score:.2f} | Policy: {alert.get('policy_name', 'N/A')}\n"
                 f"{alert.get('message', '')}",
         # Discord-compatible format
         "embeds": [{
-            "title": f"{emoji} Docker Sentinel Alert",
+            "title": f"{emoji} HostSpectra Alert",
             "description": alert.get("message", "Security alert triggered"),
             "color": {"low": 0x3FB950, "medium": 0xD29922, "high": 0xFF6600, "critical": 0xDA3633}.get(severity, 0x58A6FF),
             "fields": [

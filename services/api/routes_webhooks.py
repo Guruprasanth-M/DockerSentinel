@@ -20,7 +20,7 @@ log = structlog.get_logger()
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
-WEBHOOKS_CONFIG = os.environ.get("SENTINEL_CONFIG", "/config/sentinel.yml")
+WEBHOOKS_CONFIG = os.environ.get("HOSTSPECTRA_CONFIG", "/config/hostspectra.yml")
 WEBHOOKS_FILE = "/config/webhooks.yml"
 
 # SSRF protection — block internal/private IP ranges
@@ -237,9 +237,9 @@ async def test_webhook(webhook_name: str):
         async with httpx.AsyncClient(timeout=10.0) as client:
             test_payload = {
                 "event": "test",
-                "message": "Docker Sentinel test webhook",
+                "message": "HostSpectra test webhook",
                 "timestamp": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat().replace("+00:00", "Z"),
-                "text": "Docker Sentinel: Test webhook delivery",
+                "text": "HostSpectra: Test webhook delivery",
             }
             import json
             resp = await client.post(

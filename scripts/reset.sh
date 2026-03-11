@@ -1,11 +1,11 @@
 #!/bin/bash
-# reset.sh — Factory reset Docker Sentinel (wipes all data, keeps config)
+# reset.sh — Factory reset HostSpectra (wipes all data, keeps config)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
-echo "=== Docker Sentinel Factory Reset ==="
+echo "=== HostSpectra Factory Reset ==="
 echo "This will DELETE all data in ./data/"
 echo "Configuration files in ./config/ will be KEPT."
 echo ""

@@ -6,7 +6,7 @@ import structlog
 import yaml
 from typing import List, Dict, Any, Optional, Callable
 
-logger = structlog.get_logger("sentinel.policy.loader")
+logger = structlog.get_logger("hostspectra.policy.loader")
 
 
 class PolicyRule:

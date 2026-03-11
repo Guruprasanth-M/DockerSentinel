@@ -7,7 +7,7 @@ from typing import Dict, Any
 
 from ip_block import unblock_ip
 
-logger = structlog.get_logger("sentinel.actions.reversal")
+logger = structlog.get_logger("hostspectra.actions.reversal")
 
 REVERSAL_KEY = "sentinel:reversals"
 

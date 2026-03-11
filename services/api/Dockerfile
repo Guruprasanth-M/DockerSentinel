@@ -13,8 +13,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Run as non-root user
-RUN adduser --disabled-password --no-create-home --gecos "" sentinel
-USER sentinel
+RUN adduser --disabled-password --no-create-home --gecos "" hostspectra
+USER hostspectra
 
 EXPOSE 8000
 

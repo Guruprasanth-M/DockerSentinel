@@ -44,13 +44,13 @@ log = structlog.get_logger(service="collectors")
 
 # ─── Configuration ───
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
-CONFIG_PATH = os.environ.get("SENTINEL_CONFIG", "/config/sentinel.yml")
+CONFIG_PATH = os.environ.get("HOSTSPECTRA_CONFIG", "/config/hostspectra.yml")
 HEALTH_FILE = "/tmp/collectors_healthy"
 HEARTBEAT_INTERVAL = 10  # seconds
 
 
 def load_config() -> dict:
-    """Load sentinel configuration."""
+    """Load hostspectra configuration."""
     try:
         with open(CONFIG_PATH, "r") as f:
             return yaml.safe_load(f) or {}
@@ -82,8 +82,8 @@ async def supervisor(name: str, coro_factory, *args) -> None:
 async def main() -> None:
     """Main entry point — starts all collectors."""
     config = load_config()
-    sentinel_config = config.get("sentinel", {})
-    collection_config = sentinel_config.get("collection", {})
+    hostspectra_config = config.get("hostspectra", {})
+    collection_config = hostspectra_config.get("collection", {})
 
     interval_ms = collection_config.get("interval_ms", 500)
     feature_window = collection_config.get("feature_window_seconds", 5)

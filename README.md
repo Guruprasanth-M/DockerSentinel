@@ -1,17 +1,19 @@
-# DockerSentinel
+# HostSpectra
+
+*Formerly known as Docker Sentinel*
 
 **Lightweight, self-hosted SIEM for Linux servers.**
 
 One command. Real-time threat detection. Automated response. No vendor lock-in.
 
 ```bash
-git clone https://github.com/Guruprasanth-M/DockerSentinel.git
-cd DockerSentinel && chmod +x main.sh && ./main.sh
+git clone https://github.com/Guruprasanth-M/HostSpectra.git
+cd HostSpectra && chmod +x main.sh && ./main.sh
 ```
 
 Open `http://your-server:8080` — done.
 
-**[Full Documentation →](https://dockersentinel.selfmade.one)**
+**[Full Documentation →](https://hostspectra.selfmade.one)**
 
 ---
 
@@ -74,8 +76,8 @@ Detection to response: **5–12 seconds**
 ## Quick Start
 
 ```bash
-git clone https://github.com/Guruprasanth-M/DockerSentinel.git
-cd DockerSentinel
+git clone https://github.com/Guruprasanth-M/HostSpectra.git
+cd HostSpectra
 chmod +x main.sh
 ./main.sh
 ```
@@ -86,8 +88,8 @@ Requirements: Linux, Docker 24+, 512 MB RAM, port 8080.
 
 ## Resources
 
-[Documentation](https://dockersentinel.selfmade.one)
+[Documentation](https://hostspectra.selfmade.one)
 
 ---
 
-**DockerSentinel** — because every server deserves a guard that never sleeps.
+**HostSpectra** — because every server deserves a guard that never sleeps.

@@ -36,17 +36,17 @@ def get_api_token() -> str:
         return _cached_token
 
     # Try config file first
-    config_path = os.environ.get("SENTINEL_CONFIG", "/config/sentinel.yml")
+    config_path = os.environ.get("HOSTSPECTRA_CONFIG", "/config/hostspectra.yml")
     try:
         with open(config_path, "r") as f:
             config = yaml.safe_load(f) or {}
-        token = config.get("sentinel", {}).get("api_token", "")
+        token = config.get("hostspectra", {}).get("api_token", "")
     except Exception:
         token = ""
 
     # Fall back to environment variable
     if not token:
-        token = os.environ.get("SENTINEL_API_TOKEN", "")
+        token = os.environ.get("HOSTSPECTRA_API_TOKEN", "")
 
     _cached_token = token
     _token_cached_at = now

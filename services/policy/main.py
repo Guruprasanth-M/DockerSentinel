@@ -29,7 +29,7 @@ structlog.configure(
     ]
 )
 
-logger = structlog.get_logger("sentinel.policy")
+logger = structlog.get_logger("hostspectra.policy")
 
 REDIS_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
 DB_URL = os.environ.get("DB_URL", "")

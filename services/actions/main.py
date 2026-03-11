@@ -25,7 +25,7 @@ structlog.configure(
     ]
 )
 
-logger = structlog.get_logger("sentinel.actions")
+logger = structlog.get_logger("hostspectra.actions")
 
 def _mask_url(url: str) -> str:
     """Mask passwords in connection URLs for safe logging."""
@@ -97,11 +97,11 @@ def mark_unhealthy():
 
 
 def load_config() -> dict:
-    config_path = os.environ.get("SENTINEL_CONFIG", "/config/sentinel.yml")
+    config_path = os.environ.get("HOSTSPECTRA_CONFIG", "/config/hostspectra.yml")
     try:
         with open(config_path, "r") as f:
             data = yaml.safe_load(f) or {}
-        return data.get("sentinel", {}).get("actions", {})
+        return data.get("hostspectra", {}).get("actions", {})
     except Exception as e:
         logger.warning("config_load_failed", error=str(e))
         return {}

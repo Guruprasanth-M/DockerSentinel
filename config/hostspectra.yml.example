@@ -1,11 +1,11 @@
-# sentinel.yml.example
-# Copy to sentinel.yml: cp config/sentinel.yml.example config/sentinel.yml
+# hostspectra.yml.example
+# Copy to hostspectra.yml: cp config/hostspectra.yml.example config/hostspectra.yml
 # Then update api_token with a generated token:
 #   python3 -c "import secrets; print(secrets.token_hex(32))"
 
 version: "0.2"
 
-sentinel:
+hostspectra:
   # REQUIRED — Generate with: python3 -c "import secrets; print(secrets.token_hex(32))"
   api_token: "CHANGE_THIS_TO_64_CHAR_HEX_STRING"
 

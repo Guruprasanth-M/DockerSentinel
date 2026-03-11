@@ -11,7 +11,7 @@ COPY . .
 RUN python generate_model.py
 
 # Run as non-root user
-RUN adduser --disabled-password --no-create-home --gecos "" sentinel
-USER sentinel
+RUN adduser --disabled-password --no-create-home --gecos "" hostspectra
+USER hostspectra
 
 CMD ["python", "-u", "main.py"]

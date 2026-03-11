@@ -40,13 +40,13 @@ log = structlog.get_logger(service="ml")
 
 # ─── Configuration ───
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
-CONFIG_PATH = os.environ.get("SENTINEL_CONFIG", "/config/sentinel.yml")
+CONFIG_PATH = os.environ.get("HOSTSPECTRA_CONFIG", "/config/hostspectra.yml")
 HEALTH_FILE = "/tmp/ml_healthy"
 HEARTBEAT_INTERVAL = 10  # seconds
 
 
 def load_config() -> dict:
-    """Load sentinel configuration."""
+    """Load hostspectra configuration."""
     try:
         with open(CONFIG_PATH, "r") as f:
             return yaml.safe_load(f) or {}

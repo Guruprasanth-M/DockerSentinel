@@ -44,10 +44,10 @@ def _mask_url(url: str) -> str:
     return re.sub(r'(://[^:]*:)[^@]+(@)', r'\1*****\2', url)
 
 
-CONFIG_PATH = os.environ.get("SENTINEL_CONFIG", "/config/sentinel.yml")
+CONFIG_PATH = os.environ.get("HOSTSPECTRA_CONFIG", "/config/hostspectra.yml")
 
 # M9: Disable /docs in production unless explicitly enabled
-_ENABLE_DOCS = os.environ.get("SENTINEL_ENABLE_DOCS", "false").lower() in ("true", "1", "yes")
+_ENABLE_DOCS = os.environ.get("HOSTSPECTRA_ENABLE_DOCS", "false").lower() in ("true", "1", "yes")
 
 # ─── Lifespan ───
 @asynccontextmanager
@@ -82,7 +82,7 @@ async def lifespan(application: FastAPI):
 
 # ─── FastAPI app ───
 app = FastAPI(
-    title="Docker Sentinel API",
+    title="HostSpectra API",
     version="v0.2",
     docs_url="/docs" if _ENABLE_DOCS else None,  # M9: disabled by default
     redoc_url=None,

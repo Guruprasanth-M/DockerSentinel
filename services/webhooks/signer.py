@@ -3,7 +3,7 @@ import hashlib
 import hmac
 import structlog
 
-logger = structlog.get_logger("sentinel.webhooks.signer")
+logger = structlog.get_logger("hostspectra.webhooks.signer")
 
 
 def sign_payload(payload: bytes, secret: str) -> str:

@@ -1,9 +1,9 @@
 const BASE = '/api';
-let token = localStorage.getItem('sentinel_token') || '';
+let token = localStorage.getItem('hostspectra_token') || '';
 
 export function setToken(val) {
     token = val;
-    localStorage.setItem('sentinel_token', val);
+    localStorage.setItem('hostspectra_token', val);
 }
 
 export function getToken() {

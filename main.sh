@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================================
-#  Docker Sentinel — One-Command Installer & Launcher
+#  HostSpectra — One-Command Installer & Launcher
 #
 #  Usage:  chmod +x main.sh && ./main.sh [command]
 #
@@ -42,10 +42,10 @@ ARROW="${CYAN}➜${NC}"
 WARN="${YELLOW}⚠${NC}"
 
 # ── Project Configuration ────────────────────────────────────────────────────
-PROJECT_NAME="Docker Sentinel"
+PROJECT_NAME="HostSpectra"
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DASHBOARD_PORT="${DASHBOARD_PORT:-8080}"
-SENTINEL_VERSION="0.2.0"
+HOSTSPECTRA_VERSION="0.2.0"
 LOG_FILE="${PROJECT_DIR}/install.log"
 
 # ── Helper Functions ─────────────────────────────────────────────────────────
@@ -449,19 +449,19 @@ setup_config() {
         webhook_secret=$(openssl rand -hex 32 2>/dev/null || python3 -c "import secrets; print(secrets.token_hex(32))")
 
         cat > "${PROJECT_DIR}/.env" << EOF
-SENTINEL_VERSION=${SENTINEL_VERSION}
+HOSTSPECTRA_VERSION=${HOSTSPECTRA_VERSION}
 REDIS_PASSWORD=${redis_pass}
 REDIS_URL=redis://:${redis_pass}@redis:6379/0
-SENTINEL_CONFIG=/config/sentinel.yml
+HOSTSPECTRA_CONFIG=/config/hostspectra.yml
 DATA_DIR=./data
 DASHBOARD_PORT=${DASHBOARD_PORT}
-COMPOSE_PROJECT_NAME=sentinel
-SENTINEL_API_TOKEN=${api_token}
-SENTINEL_SECRET_KEY=${secret_key}
-DB_NAME=sentinel
-DB_USER=sentinel
+COMPOSE_PROJECT_NAME=hostspectra
+HOSTSPECTRA_API_TOKEN=${api_token}
+HOSTSPECTRA_SECRET_KEY=${secret_key}
+DB_NAME=hostspectra
+DB_USER=hostspectra
 DB_PASSWORD=${db_pass}
-DB_URL=postgresql://sentinel:${db_pass}@db:5432/sentinel
+DB_URL=postgresql://hostspectra:${db_pass}@db:5432/hostspectra
 WEBHOOK_SECRET=${webhook_secret}
 DOCKER_GID=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || echo 0)
 EOF
@@ -480,13 +480,13 @@ EOF
         log_success ".env already exists, keeping current config"
     fi
 
-    # Create sentinel.yml from example if not present
-    if [ ! -f "${PROJECT_DIR}/config/sentinel.yml" ]; then
-        cat > "${PROJECT_DIR}/config/sentinel.yml" << EOF
+    # Create hostspectra.yml from example if not present
+    if [ ! -f "${PROJECT_DIR}/config/hostspectra.yml" ]; then
+        cat > "${PROJECT_DIR}/config/hostspectra.yml" << EOF
 version: "0.2"
 
-sentinel:
-  # API token loaded from SENTINEL_API_TOKEN env var — do NOT hardcode
+hostspectra:
+  # API token loaded from HOSTSPECTRA_API_TOKEN env var — do NOT hardcode
   host_name: "$(hostname)"
   
   ml:
@@ -520,9 +520,9 @@ sentinel:
     actions: 5000
     audit: 100000
 EOF
-        log_success "Generated config/sentinel.yml"
+        log_success "Generated config/hostspectra.yml"
     else
-        log_success "config/sentinel.yml exists, keeping current config"
+        log_success "config/hostspectra.yml exists, keeping current config"
     fi
 
     # Create policies.yml if not present
@@ -617,7 +617,7 @@ webhooks:
 
   # Example: Custom SIEM endpoint (disabled by default)
   - name: custom_siem
-    url: http://your-siem-server:9000/sentinel
+    url: http://your-siem-server:9000/hostspectra
     events: [attack_detected, anomaly_detected, action_taken, critical_alert]
     enabled: false
     sign_payloads: true
@@ -662,7 +662,7 @@ stop_existing() {
 
     cd "${PROJECT_DIR}"
 
-    # Stop existing sentinel containers with live progress
+    # Stop existing hostspectra containers with live progress
     if $COMPOSE_CMD ps -q 2>/dev/null | grep -q .; then
         local running
         running=$($COMPOSE_CMD ps --format '{{.Name}}' 2>/dev/null | wc -l)
@@ -764,7 +764,7 @@ build_images() {
 }
 
 start_stack() {
-    log_step "Starting Docker Sentinel stack..."
+    log_step "Starting HostSpectra stack..."
 
     cd "${PROJECT_DIR}"
 
@@ -886,7 +886,7 @@ print_banner() {
     echo ""
     echo -e "${CYAN}╔══════════════════════════════════════════════════════════════╗${NC}"
     echo -e "${CYAN}║${NC}                                                              ${CYAN}║${NC}"
-    echo -e "${CYAN}║${NC}   ${BOLD}🛡️  Docker Sentinel v${SENTINEL_VERSION}${NC}                                ${CYAN}║${NC}"
+    echo -e "${CYAN}║${NC}   ${BOLD}🛡️  HostSpectra v${HOSTSPECTRA_VERSION}${NC}                                ${CYAN}║${NC}"
     echo -e "${CYAN}║${NC}   ${BLUE}Real-Time Docker Security Monitoring${NC}                       ${CYAN}║${NC}"
     echo -e "${CYAN}║${NC}                                                              ${CYAN}║${NC}"
     echo -e "${CYAN}║${NC}   Built by ${BOLD}Guruprasanth M${NC}                                     ${CYAN}║${NC}"
@@ -902,7 +902,7 @@ print_summary() {
 
     echo ""
     echo -e "${GREEN}╔══════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${GREEN}║${NC}  ${BOLD}${TICK} Docker Sentinel is running!${NC}                               ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}  ${BOLD}${TICK} HostSpectra is running!${NC}                               ${GREEN}║${NC}"
     echo -e "${GREEN}╠══════════════════════════════════════════════════════════════╣${NC}"
     echo -e "${GREEN}║${NC}                                                              ${GREEN}║${NC}"
     echo -e "${GREEN}║${NC}  ${BOLD}Dashboard:${NC}  http://${server_ip}:${DASHBOARD_PORT}                      ${GREEN}║${NC}"
@@ -915,7 +915,7 @@ print_summary() {
     echo -e "${GREEN}║${NC}    Simulate attack: ./scripts/simulate_attack.sh all       ${GREEN}║${NC}"
     echo -e "${GREEN}║${NC}    Backup:         ./scripts/backup.sh                     ${GREEN}║${NC}"
     echo -e "${GREEN}║${NC}                                                              ${GREEN}║${NC}"
-    echo -e "${GREEN}║${NC}  ${BOLD}API Token:${NC} $(grep SENTINEL_API_TOKEN "${PROJECT_DIR}/.env" 2>/dev/null | cut -d= -f2 | head -c 16)...  ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}  ${BOLD}API Token:${NC} $(grep HOSTSPECTRA_API_TOKEN "${PROJECT_DIR}/.env" 2>/dev/null | cut -d= -f2 | head -c 16)...  ${GREEN}║${NC}"
     echo -e "${GREEN}║${NC}  (Full token in .env file)                                   ${GREEN}║${NC}"
     echo -e "${GREEN}║${NC}                                                              ${GREEN}║${NC}"
     echo -e "${GREEN}║${NC}  ${BLUE}Install log: ${LOG_FILE}${NC}      ${GREEN}║${NC}"
@@ -926,14 +926,14 @@ print_summary() {
 # ── Subcommands ──────────────────────────────────────────────────────────────
 
 cmd_stop() {
-    log_step "Stopping Docker Sentinel..."
+    log_step "Stopping HostSpectra..."
     cd "$PROJECT_DIR"
     docker compose stop 2>/dev/null || true
     log_success "Stack stopped."
 }
 
 cmd_restart() {
-    log_step "Restarting Docker Sentinel..."
+    log_step "Restarting HostSpectra..."
     cd "$PROJECT_DIR"
     docker compose restart 2>/dev/null || true
     log_success "Stack restarted. Waiting for health checks..."
@@ -949,14 +949,14 @@ cmd_destroy() {
         log_info "Destroy cancelled."
         return
     fi
-    log_step "Destroying Docker Sentinel..."
+    log_step "Destroying HostSpectra..."
     cd "$PROJECT_DIR"
     docker compose down -v --rmi local 2>/dev/null || true
     log_success "Stack destroyed. Data volumes removed. Run ./main.sh to reinstall."
 }
 
 cmd_status() {
-    log_step "Docker Sentinel Status"
+    log_step "HostSpectra Status"
     cd "$PROJECT_DIR"
     echo ""
     docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || {
@@ -1016,11 +1016,11 @@ main() {
 
 _run_install() {
     # Initialize log file
-    echo "=== Docker Sentinel Installation — $(date) ===" > "$LOG_FILE"
+    echo "=== HostSpectra Installation — $(date) ===" > "$LOG_FILE"
 
     print_banner
 
-    log_step "Starting Docker Sentinel setup..."
+    log_step "Starting HostSpectra setup..."
     log_info "Project directory: ${PROJECT_DIR}"
     log_info "Installation log: ${LOG_FILE}"
 

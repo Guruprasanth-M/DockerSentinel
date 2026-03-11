@@ -3,7 +3,7 @@ import os
 import signal
 import structlog
 
-logger = structlog.get_logger("sentinel.actions.process_manager")
+logger = structlog.get_logger("hostspectra.actions.process_manager")
 
 
 async def kill_process(pid: int, process_name: str = "") -> dict:

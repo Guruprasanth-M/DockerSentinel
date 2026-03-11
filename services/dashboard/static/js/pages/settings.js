@@ -14,7 +14,7 @@ export function init() {
 
     var tokenInput = qs('#apiToken');
     if (tokenInput) {
-        var saved = localStorage.getItem('sentinel_token') || '';
+        var saved = localStorage.getItem('hostspectra_token') || '';
         tokenInput.value = saved;
     }
 
@@ -101,11 +101,11 @@ function handleTokenSave(e) {
 
     var token = input.value.trim();
     if (token) {
-        localStorage.setItem('sentinel_token', token);
+        localStorage.setItem('hostspectra_token', token);
         api.setToken(token);
         dialog.toast('API token saved', 'success');
     } else {
-        localStorage.removeItem('sentinel_token');
+        localStorage.removeItem('hostspectra_token');
         api.setToken('');
         dialog.toast('API token cleared', 'info');
     }
@@ -119,7 +119,7 @@ async function loadWebhooks() {
 
     try {
         var res = await fetch('/api/webhooks', {
-            headers: { 'X-Sentinel-Token': localStorage.getItem('sentinel_token') || '' }
+            headers: { 'X-Sentinel-Token': localStorage.getItem('hostspectra_token') || '' }
         });
         if (!res.ok) {
             container.innerHTML = '<div class="empty-placeholder"><span class="text-muted text-sm">Failed to load webhooks (check API token)</span></div>';
@@ -195,7 +195,7 @@ function hideWebhookForm() {
 async function editWebhook(name) {
     try {
         var res = await fetch('/api/webhooks', {
-            headers: { 'X-Sentinel-Token': localStorage.getItem('sentinel_token') || '' }
+            headers: { 'X-Sentinel-Token': localStorage.getItem('hostspectra_token') || '' }
         });
         var data = await res.json();
         var wh = (data.webhooks || []).find(function(w) { return w.name === name; });
@@ -228,7 +228,7 @@ async function handleWebhookSave() {
         return;
     }
 
-    var token = localStorage.getItem('sentinel_token') || '';
+    var token = localStorage.getItem('hostspectra_token') || '';
     var body = { name: name, url: url, events: events, enabled: enabled, sign_payloads: signPayloads };
 
     try {
@@ -255,7 +255,7 @@ async function handleWebhookSave() {
 }
 
 async function testWebhook(name) {
-    var token = localStorage.getItem('sentinel_token') || '';
+    var token = localStorage.getItem('hostspectra_token') || '';
     try {
         dialog.toast('Sending test...', 'info');
         var res = await fetch('/api/webhooks/' + name + '/test', {
@@ -276,7 +276,7 @@ async function testWebhook(name) {
 async function deleteWebhook(name) {
     if (!confirm('Delete webhook "' + name + '"?')) return;
 
-    var token = localStorage.getItem('sentinel_token') || '';
+    var token = localStorage.getItem('hostspectra_token') || '';
     try {
         var res = await fetch('/api/webhooks/' + name, {
             method: 'DELETE',

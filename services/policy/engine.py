@@ -8,7 +8,7 @@ from typing import Dict, Any, List, Optional
 from collections import defaultdict
 from loader import PolicyRule
 
-logger = structlog.get_logger("sentinel.policy.engine")
+logger = structlog.get_logger("hostspectra.policy.engine")
 
 
 class DedupTracker:

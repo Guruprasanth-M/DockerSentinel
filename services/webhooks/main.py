@@ -23,7 +23,7 @@ structlog.configure(
     ]
 )
 
-logger = structlog.get_logger("sentinel.webhooks")
+logger = structlog.get_logger("hostspectra.webhooks")
 
 REDIS_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
 
@@ -74,13 +74,13 @@ class WebhookConfig:
             logger.error("webhook_config_load_error", error=str(e))
     
     def load_host_name(self):
-        config_path = os.environ.get("SENTINEL_CONFIG", "/config/sentinel.yml")
+        config_path = os.environ.get("HOSTSPECTRA_CONFIG", "/config/hostspectra.yml")
         try:
             with open(config_path, "r") as f:
                 data = yaml.safe_load(f) or {}
-            self.host_name = data.get("sentinel", {}).get("host_name", "")
+            self.host_name = data.get("hostspectra", {}).get("host_name", "")
         except Exception:
-            self.host_name = os.environ.get("HOSTNAME", "sentinel")
+            self.host_name = os.environ.get("HOSTNAME", "hostspectra")
     
     def check_reload(self):
         try:

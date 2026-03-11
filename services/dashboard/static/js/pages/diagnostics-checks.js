@@ -83,7 +83,7 @@ export async function checkApiEndpoints() {
         var ep = API_ENDPOINTS[i];
         var t0 = performance.now();
         try {
-            var token = localStorage.getItem('sentinel_token') || '';
+            var token = localStorage.getItem('hostspectra_token') || '';
             var headers = {};
             if (token) headers['X-Sentinel-Token'] = token;
 

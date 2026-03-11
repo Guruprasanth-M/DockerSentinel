@@ -20,7 +20,7 @@ async function boot() {
 
     router.init();
 
-    var token = localStorage.getItem('sentinel_token') || '';
+    var token = localStorage.getItem('hostspectra_token') || '';
     socket.connect(token);
 
     emitter.on('ws:anomaly_detected', function (data) {

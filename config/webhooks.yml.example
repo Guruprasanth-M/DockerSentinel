@@ -37,7 +37,7 @@ webhooks:
 
   # Custom SIEM or log aggregation endpoint
   - name: custom_siem
-    url: http://your-siem-server:9000/sentinel
+    url: http://your-siem-server:9000/hostspectra
     events: [attack_detected, anomaly_detected, action_taken, critical_alert]
     enabled: false
     sign_payloads: true

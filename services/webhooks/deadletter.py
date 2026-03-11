@@ -3,7 +3,7 @@ import json
 import time
 import structlog
 
-logger = structlog.get_logger("sentinel.webhooks.queue")
+logger = structlog.get_logger("hostspectra.webhooks.queue")
 
 DEAD_LETTER_STREAM = "sentinel:webhooks:failed"
 MAX_DEAD_LETTERS = 1000

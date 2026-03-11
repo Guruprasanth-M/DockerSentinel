@@ -1,42 +1,42 @@
 # docker-compose.yml
-# Docker Sentinel v0.2
+# HostSpectra v0.2
 
-name: sentinel
+name: hostspectra
 
 networks:
-  sentinel-net:
+  hostspectra-net:
     driver: bridge
 
 volumes:
-  sentinel-redis-data:
+  hostspectra-redis-data:
     driver: local
     driver_opts:
       type: none
       o: bind
       device: ${PWD}/data/redis
 
-  sentinel-model-data:
+  hostspectra-model-data:
     driver: local
     driver_opts:
       type: none
       o: bind
       device: ${PWD}/data/models
 
-  sentinel-audit-data:
+  hostspectra-audit-data:
     driver: local
     driver_opts:
       type: none
       o: bind
       device: ${PWD}/data/audit
 
-  sentinel-state-data:
+  hostspectra-state-data:
     driver: local
     driver_opts:
       type: none
       o: bind
       device: ${PWD}/data/collector-state
 
-  sentinel-db-data:
+  hostspectra-db-data:
     driver: local
     driver_opts:
       type: none
@@ -50,21 +50,21 @@ services:
 
   db:
     image: postgres:16-alpine
-    container_name: sentinel-db
+    container_name: hostspectra-db
     restart: always
-    networks: [sentinel-net]
+    networks: [hostspectra-net]
     entrypoint: ["/bin/bash", "/scripts/db_password_sync.sh"]
     environment:
       # WARNING: Run main.sh first to generate .env with random passwords
-      POSTGRES_DB: ${DB_NAME:-sentinel}
-      POSTGRES_USER: ${DB_USER:-sentinel}
+      POSTGRES_DB: ${DB_NAME:-hostspectra}
+      POSTGRES_USER: ${DB_USER:-hostspectra}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?Run main.sh first to generate .env}
     volumes:
-      - sentinel-db-data:/var/lib/postgresql/data
+      - hostspectra-db-data:/var/lib/postgresql/data
       - ./config/db_init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
       - ./config/db_password_sync.sh:/scripts/db_password_sync.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-sentinel} -d ${DB_NAME:-sentinel}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-hostspectra} -d ${DB_NAME:-hostspectra}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -82,13 +82,13 @@ services:
 
   redis:
     image: redis:7.2-alpine
-    container_name: sentinel-redis
+    container_name: hostspectra-redis
     restart: always
-    networks: [sentinel-net]
+    networks: [hostspectra-net]
     volumes:
-      - sentinel-redis-data:/data
+      - hostspectra-redis-data:/data
       - ./config/redis.conf:/etc/redis/redis.conf:ro
-    command: redis-server /etc/redis/redis.conf --requirepass ${REDIS_PASSWORD:-sentinel_redis_pass}
+    command: redis-server /etc/redis/redis.conf --requirepass ${REDIS_PASSWORD:-hostspectra_redis_pass}
     healthcheck:
       test: ["CMD", "sh", "-c", "REDISCLI_AUTH=$REDIS_PASSWORD redis-cli ping"]
       interval: 10s
@@ -110,22 +110,22 @@ services:
     build:
       context: ./services/collectors
       dockerfile: Dockerfile
-    image: sentinel-collectors:0.2.0
-    container_name: sentinel-collectors
+    image: hostspectra-collectors:0.2.0
+    container_name: hostspectra-collectors
     restart: always
-    networks: [sentinel-net]
+    networks: [hostspectra-net]
     depends_on:
       redis:
         condition: service_healthy
     environment:
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-sentinel_redis_pass}@redis:6379/0
-      - SENTINEL_CONFIG=/config/sentinel.yml
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-hostspectra_redis_pass}@redis:6379/0
+      - HOSTSPECTRA_CONFIG=/config/hostspectra.yml
       - HOST_LOGS_PATH=/host_logs
       - SERVICE_NAME=collectors
     volumes:
       - /var/log:/host_logs:ro
       - /proc:/host_proc:ro
-      - sentinel-state-data:/data/collector-state
+      - hostspectra-state-data:/data/collector-state
       - ./config:/config:ro
       - ./scripts:/scripts:ro
     pid: "host"
@@ -150,21 +150,21 @@ services:
     build:
       context: ./services/ml
       dockerfile: Dockerfile
-    image: sentinel-ml:0.2.0
-    container_name: sentinel-ml
+    image: hostspectra-ml:0.2.0
+    container_name: hostspectra-ml
     restart: always
-    networks: [sentinel-net]
+    networks: [hostspectra-net]
     depends_on:
       redis:
         condition: service_healthy
       collectors:
         condition: service_started
     environment:
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-sentinel_redis_pass}@redis:6379/0
-      - SENTINEL_CONFIG=/config/sentinel.yml
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-hostspectra_redis_pass}@redis:6379/0
+      - HOSTSPECTRA_CONFIG=/config/hostspectra.yml
       - SERVICE_NAME=ml
     volumes:
-      - sentinel-model-data:/data/models
+      - hostspectra-model-data:/data/models
       - ./config:/config:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import os,sys; sys.exit(0 if os.path.exists('/tmp/ml_healthy') else 1)"]
@@ -187,19 +187,19 @@ services:
     build:
       context: ./services/policy
       dockerfile: Dockerfile
-    image: sentinel-policy:0.2.0
-    container_name: sentinel-policy
+    image: hostspectra-policy:0.2.0
+    container_name: hostspectra-policy
     restart: always
-    networks: [sentinel-net]
+    networks: [hostspectra-net]
     depends_on:
       redis:
         condition: service_healthy
       db:
         condition: service_healthy
     environment:
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-sentinel_redis_pass}@redis:6379/0
-      - DB_URL=postgresql://${DB_USER:-sentinel}:${DB_PASSWORD:?Run main.sh to generate .env}@db:5432/${DB_NAME:-sentinel}
-      - SENTINEL_CONFIG=/config/sentinel.yml
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-hostspectra_redis_pass}@redis:6379/0
+      - DB_URL=postgresql://${DB_USER:-hostspectra}:${DB_PASSWORD:?Run main.sh to generate .env}@db:5432/${DB_NAME:-hostspectra}
+      - HOSTSPECTRA_CONFIG=/config/hostspectra.yml
       - SERVICE_NAME=policy
     volumes:
       - ./config:/config:ro
@@ -224,21 +224,21 @@ services:
     build:
       context: ./services/actions
       dockerfile: Dockerfile
-    image: sentinel-actions:0.2.0
-    container_name: sentinel-actions
+    image: hostspectra-actions:0.2.0
+    container_name: hostspectra-actions
     restart: always
-    networks: [sentinel-net]
+    networks: [hostspectra-net]
     pid: "host"
     depends_on:
       redis:
         condition: service_healthy
     environment:
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-sentinel_redis_pass}@redis:6379/0
-      - SENTINEL_CONFIG=/config/sentinel.yml
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-hostspectra_redis_pass}@redis:6379/0
+      - HOSTSPECTRA_CONFIG=/config/hostspectra.yml
       - SERVICE_NAME=actions
     volumes:
       - ./config:/config:ro
-      - sentinel-audit-data:/data/audit
+      - hostspectra-audit-data:/data/audit
     cap_drop:
       - ALL
     cap_add:
@@ -266,16 +266,16 @@ services:
     build:
       context: ./services/webhooks
       dockerfile: Dockerfile
-    image: sentinel-webhooks:0.2.0
-    container_name: sentinel-webhooks
+    image: hostspectra-webhooks:0.2.0
+    container_name: hostspectra-webhooks
     restart: always
-    networks: [sentinel-net]
+    networks: [hostspectra-net]
     depends_on:
       redis:
         condition: service_healthy
     environment:
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-sentinel_redis_pass}@redis:6379/0
-      - SENTINEL_CONFIG=/config/sentinel.yml
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-hostspectra_redis_pass}@redis:6379/0
+      - HOSTSPECTRA_CONFIG=/config/hostspectra.yml
       - SERVICE_NAME=webhooks
     volumes:
       - ./config:/config:ro
@@ -300,10 +300,10 @@ services:
     build:
       context: ./services/api
       dockerfile: Dockerfile
-    image: sentinel-api:0.2.0
-    container_name: sentinel-api
+    image: hostspectra-api:0.2.0
+    container_name: hostspectra-api
     restart: always
-    networks: [sentinel-net]
+    networks: [hostspectra-net]
     depends_on:
       redis:
         condition: service_healthy
@@ -312,13 +312,13 @@ services:
       collectors:
         condition: service_started
     environment:
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-sentinel_redis_pass}@redis:6379/0
-      - SENTINEL_CONFIG=/config/sentinel.yml
-      - SENTINEL_API_TOKEN=${SENTINEL_API_TOKEN}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-hostspectra_redis_pass}@redis:6379/0
+      - HOSTSPECTRA_CONFIG=/config/hostspectra.yml
+      - HOSTSPECTRA_API_TOKEN=${HOSTSPECTRA_API_TOKEN}
       - SERVICE_NAME=api
-      - DB_URL=postgresql+asyncpg://${DB_USER:-sentinel}:${DB_PASSWORD:?Run main.sh to generate .env}@db:5432/${DB_NAME:-sentinel}
+      - DB_URL=postgresql+asyncpg://${DB_USER:-hostspectra}:${DB_PASSWORD:?Run main.sh to generate .env}@db:5432/${DB_NAME:-hostspectra}
     volumes:
-      - sentinel-audit-data:/data/audit
+      - hostspectra-audit-data:/data/audit
       - ./config:/config:ro
       - /proc:/host_proc:ro
       - /sys:/host_sys:ro
@@ -348,10 +348,10 @@ services:
     build:
       context: ./services/dashboard
       dockerfile: Dockerfile
-    image: sentinel-dashboard:0.2.0
-    container_name: sentinel-dashboard
+    image: hostspectra-dashboard:0.2.0
+    container_name: hostspectra-dashboard
     restart: always
-    networks: [sentinel-net]
+    networks: [hostspectra-net]
     depends_on:
       api:
         condition: service_healthy
@@ -376,9 +376,9 @@ services:
   # ─── Self-healing watchdog (BUG-M14) ─────────────────────
   autoheal:
     image: willfarrell/autoheal:latest
-    container_name: sentinel-autoheal
+    container_name: hostspectra-autoheal
     restart: always
-    networks: [sentinel-net]
+    networks: [hostspectra-net]
     environment:
       - AUTOHEAL_CONTAINER_LABEL=all
       - AUTOHEAL_INTERVAL=30

@@ -159,19 +159,19 @@ async def get_config(request: Request):
             config = yaml.safe_load(f) or {}
 
         # Redact sensitive fields
-        sentinel = config.get("sentinel", {})
+        hostspectra_cfg = config.get("hostspectra", {})
         if "api_token" in sentinel:
-            sentinel["api_token"] = "***REDACTED***"
+            hostspectra_cfg["api_token"] = "***REDACTED***"
 
         # Redact stream limits and ML thresholds from attackers
         safe_config = {
             "version": config.get("version", ""),
-            "sentinel": {
-                "host_name": sentinel.get("host_name", ""),
+            "hostspectra": {
+                "host_name": hostspectra_cfg.get("host_name", ""),
                 "collection": {
-                    "interval_ms": sentinel.get("collection", {}).get("interval_ms", 5000),
+                    "interval_ms": hostspectra_cfg.get("collection", {}).get("interval_ms", 5000),
                 },
-                "logging": sentinel.get("logging", {}),
+                "logging": hostspectra_cfg.get("logging", {}),
             },
         }
         return safe_config

@@ -1,4 +1,4 @@
--- Docker Sentinel PostgreSQL Schema
+-- HostSpectra PostgreSQL Schema
 -- This file runs automatically on first container start via docker-entrypoint-initdb.d
 
 -- ─── Alerts Table ─────────────────────────────────────────
@@ -110,8 +110,8 @@ CREATE INDEX IF NOT EXISTS idx_host_metrics_created_at ON host_metrics USING bri
 
 -- ─── Data Retention: Auto-cleanup old rows ────────────────
 -- Retention function: call via pg_cron or external cron daily
--- Usage: SELECT sentinel_retention_cleanup();
-CREATE OR REPLACE FUNCTION sentinel_retention_cleanup()
+-- Usage: SELECT hostspectra_retention_cleanup();
+CREATE OR REPLACE FUNCTION hostspectra_retention_cleanup()
 RETURNS TABLE(table_name TEXT, rows_deleted BIGINT) AS $$
 DECLARE
     _count BIGINT;
@@ -149,7 +149,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- To schedule daily: add to host crontab:
--- 0 3 * * * docker compose -f /path/to/docker-compose.yml exec -T db psql -U sentinel -c "SELECT sentinel_retention_cleanup();"
+-- 0 3 * * * docker compose -f /path/to/docker-compose.yml exec -T db psql -U hostspectra -c "SELECT hostspectra_retention_cleanup();"
 
 -- ─── Helper view: Recent alerts summary ───────────────────
 CREATE OR REPLACE VIEW recent_alerts AS
