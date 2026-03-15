@@ -60,10 +60,10 @@ async def logs(
 
         while len(events) < limit and scanned < max_scanned:
             if cursor_id == "+":
-                entries = await redis.xrevrange("sentinel:logs", count=batch_size)
+                entries = await redis.xrevrange("hostspectra:logs", count=batch_size)
             else:
                 entries = await redis.xrevrange(
-                    "sentinel:logs", max=cursor_id, count=batch_size
+                    "hostspectra:logs", max=cursor_id, count=batch_size
                 )
                 # Skip the cursor entry itself (xrevrange max is inclusive)
                 if entries and entries[0][0] == cursor_id:
@@ -133,7 +133,7 @@ async def log_sources(request: Request):
     redis: Redis = get_redis(request)
     sources: set = set()
     try:
-        entries = await redis.xrevrange("sentinel:logs", count=2000)
+        entries = await redis.xrevrange("hostspectra:logs", count=2000)
         for _, fields in entries:
             raw = fields.get("data", "")
             try:
@@ -160,7 +160,7 @@ async def get_config(request: Request):
 
         # Redact sensitive fields
         hostspectra_cfg = config.get("hostspectra", {})
-        if "api_token" in sentinel:
+        if "api_token" in hostspectra:
             hostspectra_cfg["api_token"] = "***REDACTED***"
 
         # Redact stream limits and ML thresholds from attackers
@@ -189,7 +189,7 @@ async def execute_action(request: Request, action: ActionRequest):
 
     try:
         await redis.xadd(
-            "sentinel:action_requests",
+            "hostspectra:action_requests",
             {
                 "alert_id": "",
                 "action_id": action_id,
@@ -235,11 +235,11 @@ async def alerts(
 
     try:
         if after:
-            entries = await redis.xrevrange("sentinel:alerts", max=after, count=limit * 2)
+            entries = await redis.xrevrange("hostspectra:alerts", max=after, count=limit * 2)
             if entries and entries[0][0] == after:
                 entries = entries[1:]
         else:
-            entries = await redis.xrevrange("sentinel:alerts", count=limit * 2)
+            entries = await redis.xrevrange("hostspectra:alerts", count=limit * 2)
 
         for entry_id, fields in entries:
             try:
@@ -291,7 +291,7 @@ async def alerts(
 
     total_count = 0
     try:
-        total_count_str = await redis.get("sentinel:alert_count")
+        total_count_str = await redis.get("hostspectra:alert_count")
         total_count = int(total_count_str) if total_count_str else len(alert_list)
     except Exception:
         total_count = len(alert_list)
@@ -316,11 +316,11 @@ async def actions(
 
     try:
         if after:
-            entries = await redis.xrevrange("sentinel:actions", max=after, count=limit * 2)
+            entries = await redis.xrevrange("hostspectra:actions", max=after, count=limit * 2)
             if entries and entries[0][0] == after:
                 entries = entries[1:]
         else:
-            entries = await redis.xrevrange("sentinel:actions", count=limit * 2)
+            entries = await redis.xrevrange("hostspectra:actions", count=limit * 2)
 
         for entry_id, fields in entries:
             try:
@@ -375,7 +375,7 @@ async def scores(
     limit: int = Query(default=50, ge=1, le=500),
     after: Optional[str] = Query(default=None, description="Cursor - stream ID to start after"),
 ):
-    """Recent ML anomaly scores from sentinel:scores stream."""
+    """Recent ML anomaly scores from hostspectra:scores stream."""
     redis: Redis = get_redis(request)
 
     score_list: List[ScoreEntry] = []
@@ -383,11 +383,11 @@ async def scores(
 
     try:
         if after:
-            entries = await redis.xrevrange("sentinel:scores", max=after, count=limit + 1)
+            entries = await redis.xrevrange("hostspectra:scores", max=after, count=limit + 1)
             if entries and entries[0][0] == after:
                 entries = entries[1:]
         else:
-            entries = await redis.xrevrange("sentinel:scores", count=limit + 1)
+            entries = await redis.xrevrange("hostspectra:scores", count=limit + 1)
 
         for entry_id, fields in entries:
             try:

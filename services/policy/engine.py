@@ -21,7 +21,7 @@ class DedupTracker:
         self._redis = redis_client
         # In-memory fallback
         self._occurrences: Dict[str, List[float]] = defaultdict(list)
-        self._prefix = "sentinel:dedup:"
+        self._prefix = "hostspectra:dedup:"
 
     async def record(self, key: str, timestamp: float) -> int:
         """Record an occurrence and return the count within the dedup window."""

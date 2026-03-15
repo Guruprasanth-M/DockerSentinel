@@ -37,11 +37,11 @@ HEARTBEAT_INTERVAL = 30
 CONSUMER_GROUP = "webhook_service"
 CONSUMER_NAME = f"webhooks_{os.getpid()}"
 HEALTH_FILE = "/tmp/webhooks_healthy"
-REVERSAL_REQUEST_STREAM = "sentinel:reversal_requests"
+REVERSAL_REQUEST_STREAM = "hostspectra:reversal_requests"
 REVERSAL_GROUP = "reversal_scheduler"
 REVERSAL_CONSUMER = f"reversal_{os.getpid()}"
-REVERSAL_KEY = "sentinel:reversals"
-REVERSAL_META_PREFIX = "sentinel:reversal_meta"
+REVERSAL_KEY = "hostspectra:reversals"
+REVERSAL_META_PREFIX = "hostspectra:reversal_meta"
 
 shutdown_event = asyncio.Event()
 
@@ -151,7 +151,7 @@ async def heartbeat(client: aioredis.Redis) -> None:
     while not shutdown_event.is_set():
         try:
             await client.set(
-                "sentinel:heartbeat:webhook_service",
+                "hostspectra:heartbeat:webhook_service",
                 json.dumps({
                     "status": "active",
                     "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -170,7 +170,7 @@ async def heartbeat(client: aioredis.Redis) -> None:
 
 
 async def process_alerts(client: aioredis.Redis, config: WebhookConfig):
-    stream = "sentinel:alerts"
+    stream = "hostspectra:alerts"
     await ensure_consumer_group(client, stream, CONSUMER_GROUP)
 
     logger.info("webhook_processor_started", stream=stream, consumer=CONSUMER_NAME)
@@ -256,7 +256,7 @@ async def process_alerts(client: aioredis.Redis, config: WebhookConfig):
 
                             # Track delivery stats
                             await client.hincrby(
-                                "sentinel:webhook_stats",
+                                "hostspectra:webhook_stats",
                                 f"{wh.get('name', 'unknown')}:{result['status']}",
                                 1,
                             )
@@ -279,16 +279,16 @@ async def process_alerts(client: aioredis.Redis, config: WebhookConfig):
             await asyncio.sleep(2)
 
 
-def _meta_key(action_id: str) -> str:
-    return f"{REVERSAL_META_PREFIX}:{action_id}"
-
-
 class ReversalSchedulerWorker:
     """Runs reversal timing outside actions container (BUG-M11 fix)."""
 
     def __init__(self, client: aioredis.Redis):
         self._client = client
         self._tasks: dict[str, asyncio.Task] = {}
+
+    @staticmethod
+    def _meta_key(action_id: str) -> str:
+        return f"{REVERSAL_META_PREFIX}:{action_id}"
 
     def _schedule_task(self, action_id: str, target: str, delay_seconds: float) -> None:
         task = self._tasks.get(action_id)
@@ -302,7 +302,7 @@ class ReversalSchedulerWorker:
         try:
             await asyncio.sleep(delay_seconds)
             await self._client.xadd(
-                "sentinel:action_requests",
+                "hostspectra:action_requests",
                 {
                     "action": "unblock_ip",
                     "target": target,
@@ -313,10 +313,11 @@ class ReversalSchedulerWorker:
                 approximate=True,
             )
             await self._client.zrem(REVERSAL_KEY, action_id)
-            await self._client.delete(_meta_key(action_id))
+            await self._client.delete(self._meta_key(action_id))
             logger.info("reversal_dispatched", action_id=action_id, target=target)
         except asyncio.CancelledError:
             logger.info("reversal_cancelled", action_id=action_id)
+            raise
         except Exception as e:
             logger.error("reversal_dispatch_failed", action_id=action_id, error=str(e))
         finally:
@@ -326,7 +327,7 @@ class ReversalSchedulerWorker:
         reversal_at = time.time() + (duration_minutes * 60)
         await self._client.zadd(REVERSAL_KEY, {action_id: reversal_at})
         await self._client.hset(
-            _meta_key(action_id),
+            self._meta_key(action_id),
             mapping={
                 "action_id": action_id,
                 "target": target,
@@ -334,7 +335,7 @@ class ReversalSchedulerWorker:
                 "scheduled_at": str(time.time()),
             },
         )
-        await self._client.expire(_meta_key(action_id), max(3600, duration_minutes * 120))
+        await self._client.expire(self._meta_key(action_id), max(3600, duration_minutes * 120))
 
         delay_seconds = max(0.0, reversal_at - time.time())
         self._schedule_task(action_id, target, delay_seconds)
@@ -350,11 +351,11 @@ class ReversalSchedulerWorker:
         now = time.time()
         entries = await self._client.zrangebyscore(REVERSAL_KEY, "-inf", "+inf", withscores=True)
         for action_id, reversal_at in entries:
-            meta = await self._client.hgetall(_meta_key(action_id))
+            meta = await self._client.hgetall(self._meta_key(action_id))
             target = meta.get("target", "") if meta else ""
             if not target:
                 await self._client.zrem(REVERSAL_KEY, action_id)
-                await self._client.delete(_meta_key(action_id))
+                await self._client.delete(self._meta_key(action_id))
                 continue
             delay_seconds = max(0.0, reversal_at - now)
             self._schedule_task(action_id, target, delay_seconds)

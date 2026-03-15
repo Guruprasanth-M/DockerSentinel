@@ -60,8 +60,8 @@ def load_config() -> dict:
 
 async def process_features(redis: Redis, scorer: Scorer) -> None:
     """Read feature vectors from Redis and score them using consumer group."""
-    stream_name = "sentinel:features"
-    output_stream = "sentinel:scores"
+    stream_name = "hostspectra:features"
+    output_stream = "hostspectra:scores"
     consumer_group = "ml_scoring"
     consumer_name = f"ml_{os.getpid()}"
     maxlen = 10000
@@ -117,7 +117,7 @@ async def process_features(redis: Redis, scorer: Scorer) -> None:
                         log.warning("ml_dead_letter", msg_id=msg_id, reason="json_decode_error")
                         try:
                             await redis.xadd(
-                                "sentinel:dead_letter",
+                                "hostspectra:dead_letter",
                                 {"source": "ml", "msg_id": msg_id, "reason": "json_decode_error",
                                  "data": raw[:500] if raw else "",
                                  "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())},
@@ -144,7 +144,7 @@ async def process_features(redis: Redis, scorer: Scorer) -> None:
                     )
 
                     # Store latest score for quick access
-                    await redis.set("sentinel:latest_score", json.dumps(result))
+                    await redis.set("hostspectra:latest_score", json.dumps(result))
 
                     # Acknowledge processed message
                     await redis.xack(stream_name, consumer_group, msg_id)
@@ -157,9 +157,9 @@ async def process_features(redis: Redis, scorer: Scorer) -> None:
                         )
                         # Increment 24h anomaly counter with auto-expiry
                         try:
-                            count = await redis.incr("sentinel:anomaly_count_24h")
+                            count = await redis.incr("hostspectra:anomaly_count_24h")
                             if count == 1:
-                                await redis.expire("sentinel:anomaly_count_24h", 86400)
+                                await redis.expire("hostspectra:anomaly_count_24h", 86400)
                         except Exception:
                             pass
 
@@ -223,7 +223,7 @@ async def main() -> None:
         while not shutdown_event.is_set():
             try:
                 await redis.set(
-                    "sentinel:heartbeat:ml",
+                    "hostspectra:heartbeat:ml",
                     json.dumps({
                         "status": "active",
                         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),

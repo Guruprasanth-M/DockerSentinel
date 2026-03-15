@@ -138,7 +138,7 @@ class ProcessCollector:
 async def run(redis: Redis, interval_ms: int = 500) -> None:
     """Run the process collector continuously."""
     collector = ProcessCollector()
-    stream_name = "sentinel:processes"
+    stream_name = "hostspectra:processes"
     maxlen = 50000
     interval = interval_ms / 1000.0
 

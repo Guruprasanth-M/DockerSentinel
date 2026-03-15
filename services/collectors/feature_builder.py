@@ -41,7 +41,7 @@ class FeatureBuilder:
         self.proc_unusual_children = 0
 
     def process_log_event(self, data: Dict) -> None:
-        """Process a log event from sentinel:logs stream."""
+        """Process a log event from hostspectra:logs stream."""
         self.log_total += 1
         event_type = data.get("type", "")
 
@@ -53,7 +53,7 @@ class FeatureBuilder:
             self.log_service_restarts += 1
 
     def process_network_event(self, data: Dict) -> None:
-        """Process a network event from sentinel:network stream."""
+        """Process a network event from hostspectra:network stream."""
         event_type = data.get("type", "")
 
         if event_type == "new_connection":
@@ -65,7 +65,7 @@ class FeatureBuilder:
             self.net_port_scan_candidates += 1
 
     def process_process_event(self, data: Dict) -> None:
-        """Process a process event from sentinel:processes stream."""
+        """Process a process event from hostspectra:processes stream."""
         event_type = data.get("type", "")
 
         if event_type == "new_process":
@@ -108,13 +108,13 @@ async def run(redis: Redis, window_seconds: int = 5) -> None:
     won't be re-processed on restart (BUG-M07 fix).
     """
     builder = FeatureBuilder(window_seconds=window_seconds)
-    output_stream = "sentinel:features"
+    output_stream = "hostspectra:features"
     maxlen = 10000
 
     consumer_group = "feature_builder"
     consumer_name = f"fb_{os.getpid()}"
 
-    input_streams = ["sentinel:logs", "sentinel:network", "sentinel:processes"]
+    input_streams = ["hostspectra:logs", "hostspectra:network", "hostspectra:processes"]
 
     # Create consumer groups for each input stream
     for stream in input_streams:
@@ -168,11 +168,11 @@ async def run(redis: Redis, window_seconds: int = 5) -> None:
                         await redis.xack(stream_name_str, consumer_group, msg_id)
                         continue
 
-                    if stream_name_str == "sentinel:logs":
+                    if stream_name_str == "hostspectra:logs":
                         builder.process_log_event(data)
-                    elif stream_name_str == "sentinel:network":
+                    elif stream_name_str == "hostspectra:network":
                         builder.process_network_event(data)
-                    elif stream_name_str == "sentinel:processes":
+                    elif stream_name_str == "hostspectra:processes":
                         builder.process_process_event(data)
 
                     await redis.xack(stream_name_str, consumer_group, msg_id)

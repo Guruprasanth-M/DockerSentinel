@@ -125,7 +125,7 @@ async def persist_alert_to_db(db_pool, alert: dict, redis_client) -> None:
     except Exception as e:
         logger.error("alert_db_persist_failed", alert_id=alert.get("alert_id"), error=str(e))
         try:
-            await redis_client.rpush("sentinel:alerts:failed", json.dumps(alert))
+            await redis_client.rpush("hostspectra:alerts:failed", json.dumps(alert))
         except Exception:
             pass
 
@@ -143,7 +143,7 @@ async def heartbeat(client: aioredis.Redis) -> None:
     while not shutdown_event.is_set():
         try:
             await client.set(
-                "sentinel:heartbeat:policy_engine",
+                "hostspectra:heartbeat:policy_engine",
                 json.dumps({
                     "status": "active",
                     "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -162,9 +162,9 @@ async def heartbeat(client: aioredis.Redis) -> None:
 
 
 async def process_scores(client: aioredis.Redis, engine: PolicyEngine, loader: PolicyLoader, db_pool: asyncpg.Pool | None):
-    stream = "sentinel:scores"
-    alert_stream = "sentinel:alerts"
-    audit_stream = "sentinel:audit"
+    stream = "hostspectra:scores"
+    alert_stream = "hostspectra:alerts"
+    audit_stream = "hostspectra:audit"
 
     await ensure_consumer_group(client, stream, CONSUMER_GROUP)
     await ensure_consumer_group(client, alert_stream, "alert_consumers")
@@ -222,8 +222,8 @@ async def process_scores(client: aioredis.Redis, engine: PolicyEngine, loader: P
                                 for k, v in alert.items()
                             }
                             await client.xadd(alert_stream, alert_data, maxlen=10000, approximate=True)
-                            await client.set("sentinel:latest_alert", json.dumps(alert), ex=3600)
-                            await client.incr("sentinel:alert_count")
+                            await client.set("hostspectra:latest_alert", json.dumps(alert), ex=3600)
+                            await client.incr("hostspectra:alert_count")
 
                             await persist_alert_to_db(db_pool, alert, client)
                             await client.xadd(
@@ -241,7 +241,7 @@ async def process_scores(client: aioredis.Redis, engine: PolicyEngine, loader: P
                             )
                             if alert["action"] != "alert_only":
                                 await client.xadd(
-                                    "sentinel:action_requests",
+                                    "hostspectra:action_requests",
                                     {
                                         "alert_id": alert["alert_id"],
                                         "action": alert["action"],
@@ -260,7 +260,7 @@ async def process_scores(client: aioredis.Redis, engine: PolicyEngine, loader: P
                         logger.error("score_processing_error", msg_id=msg_id, error=str(e))
                         try:
                             await client.xadd(
-                                "sentinel:dead_letter",
+                                "hostspectra:dead_letter",
                                 {"source": "policy", "msg_id": msg_id, "reason": str(e)[:200],
                                  "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())},
                                 maxlen=1000, approximate=True,

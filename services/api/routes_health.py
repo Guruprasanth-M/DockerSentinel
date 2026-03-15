@@ -178,7 +178,7 @@ async def health(request: Request):
 
     # Check collectors health via heartbeat key
     try:
-        collectors_ts = await redis.get("sentinel:heartbeat:collectors")
+        collectors_ts = await redis.get("hostspectra:heartbeat:collectors")
         if collectors_ts:
             services.collectors = "running"
         else:
@@ -188,7 +188,7 @@ async def health(request: Request):
 
     # Check ML health via heartbeat key (TTL-based: expires ~20s after ML stops)
     try:
-        ml_ts = await redis.get("sentinel:heartbeat:ml")
+        ml_ts = await redis.get("hostspectra:heartbeat:ml")
         if ml_ts:
             services.ml_engine = "active"
         else:
@@ -198,21 +198,21 @@ async def health(request: Request):
 
     # Check policy engine
     try:
-        policy_ts = await redis.get("sentinel:heartbeat:policy_engine")
+        policy_ts = await redis.get("hostspectra:heartbeat:policy_engine")
         services.policy_engine = "active" if policy_ts else "inactive"
     except Exception:
         services.policy_engine = "unknown"
 
     # Check action engine
     try:
-        action_ts = await redis.get("sentinel:heartbeat:action_engine")
+        action_ts = await redis.get("hostspectra:heartbeat:action_engine")
         services.action_engine = "active" if action_ts else "inactive"
     except Exception:
         services.action_engine = "unknown"
 
     # Check webhook service
     try:
-        webhook_ts = await redis.get("sentinel:heartbeat:webhook_service")
+        webhook_ts = await redis.get("hostspectra:heartbeat:webhook_service")
         services.webhook_service = "active" if webhook_ts else "inactive"
     except Exception:
         services.webhook_service = "unknown"
@@ -278,7 +278,7 @@ async def metrics(request: Request):
     risk_score = 0.0
     risk_level = "normal"
     try:
-        latest = await redis.get("sentinel:latest_score")
+        latest = await redis.get("hostspectra:latest_score")
         if latest:
             score_data = json.loads(latest)
             risk_score = score_data.get("score", 0.0)
@@ -295,14 +295,14 @@ async def metrics(request: Request):
     # Anomaly count (24h) from Redis
     anomaly_count = 0
     try:
-        anomaly_count = int(await redis.get("sentinel:anomaly_count_24h") or 0)
+        anomaly_count = int(await redis.get("hostspectra:anomaly_count_24h") or 0)
     except Exception:
         pass
 
     # Alert count from alerts stream
     alert_count = 0
     try:
-        alert_count = await redis.xlen("sentinel:alerts")
+        alert_count = await redis.xlen("hostspectra:alerts")
     except Exception:
         pass
 

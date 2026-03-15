@@ -185,7 +185,7 @@ class NetworkCollector:
 async def run(redis: Redis, interval_ms: int = 500) -> None:
     """Run the network collector continuously."""
     collector = NetworkCollector()
-    stream_name = "sentinel:network"
+    stream_name = "hostspectra:network"
     maxlen = 50000
     interval = interval_ms / 1000.0
 

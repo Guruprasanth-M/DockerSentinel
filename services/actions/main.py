@@ -36,7 +36,7 @@ HEARTBEAT_INTERVAL = 30
 CONSUMER_GROUP = "action_engine"
 CONSUMER_NAME = f"actions_{os.getpid()}"
 HEALTH_FILE = "/tmp/actions_healthy"
-REVERSAL_STREAM = "sentinel:reversal_requests"
+REVERSAL_STREAM = "hostspectra:reversal_requests"
 
 shutdown_event = asyncio.Event()
 
@@ -134,7 +134,7 @@ async def heartbeat(client: aioredis.Redis) -> None:
     while not shutdown_event.is_set():
         try:
             await client.set(
-                "sentinel:heartbeat:action_engine",
+                "hostspectra:heartbeat:action_engine",
                 json.dumps({
                     "status": "active",
                     "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -157,9 +157,9 @@ async def process_action_requests(
     config: dict,
     rate_limiter: RateLimiter,
 ):
-    stream = "sentinel:action_requests"
-    action_stream = "sentinel:actions"
-    audit_stream = "sentinel:audit"
+    stream = "hostspectra:action_requests"
+    action_stream = "hostspectra:actions"
+    audit_stream = "hostspectra:audit"
 
     await ensure_consumer_group(client, stream, CONSUMER_GROUP)
 
@@ -286,7 +286,7 @@ async def process_action_requests(
                         logger.error("action_processing_error", msg_id=msg_id, error=str(e))
                         try:
                             await client.xadd(
-                                "sentinel:dead_letter",
+                                "hostspectra:dead_letter",
                                 {"source": "actions", "msg_id": msg_id, "reason": str(e)[:200],
                                  "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())},
                                 maxlen=1000, approximate=True,

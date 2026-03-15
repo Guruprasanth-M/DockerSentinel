@@ -5,7 +5,7 @@ import structlog
 
 logger = structlog.get_logger("hostspectra.webhooks.queue")
 
-DEAD_LETTER_STREAM = "sentinel:webhooks:failed"
+DEAD_LETTER_STREAM = "hostspectra:webhooks:failed"
 MAX_DEAD_LETTERS = 1000
 
 

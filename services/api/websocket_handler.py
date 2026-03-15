@@ -19,10 +19,10 @@ ALL_TOPICS = {"scores", "logs", "processes", "alerts"}
 
 # Map topics to Redis streams
 TOPIC_STREAM_MAP = {
-    "scores": "sentinel:scores",
-    "logs": "sentinel:logs",
-    "processes": "sentinel:processes",
-    "alerts": "sentinel:alerts",
+    "scores": "hostspectra:scores",
+    "logs": "hostspectra:logs",
+    "processes": "hostspectra:processes",
+    "alerts": "hostspectra:alerts",
 }
 
 
@@ -95,7 +95,7 @@ async def send_replay(
     try:
         # Get recent scores
         if "scores" in session.topics:
-            latest_score = await redis.get("sentinel:latest_score")
+            latest_score = await redis.get("hostspectra:latest_score")
             if latest_score:
                 await websocket.send_json({
                     "type": "status_update",
@@ -104,7 +104,7 @@ async def send_replay(
 
         # Get recent alerts (last 10)
         if "alerts" in session.topics:
-            alert_entries = await redis.xrevrange("sentinel:alerts", count=10)
+            alert_entries = await redis.xrevrange("hostspectra:alerts", count=10)
             for entry_id, fields in reversed(alert_entries):
                 try:
                     await websocket.send_json({
@@ -117,7 +117,7 @@ async def send_replay(
 
         # Get recent log events (last 20)
         if "logs" in session.topics:
-            log_entries = await redis.xrevrange("sentinel:logs", count=20)
+            log_entries = await redis.xrevrange("hostspectra:logs", count=20)
             for entry_id, fields in reversed(log_entries):
                 raw = fields.get("data", "")
                 try:
@@ -219,7 +219,7 @@ async def stream_events(
                         except (json.JSONDecodeError, TypeError):
                             data = dict(fields)
 
-                        if stream_name == "sentinel:scores":
+                        if stream_name == "hostspectra:scores":
                             await websocket.send_json({
                                 "type": "status_update",
                                 "id": msg_id,
@@ -242,21 +242,21 @@ async def stream_events(
                                         },
                                     })
 
-                        elif stream_name == "sentinel:logs":
+                        elif stream_name == "hostspectra:logs":
                             await websocket.send_json({
                                 "type": "log_event",
                                 "id": msg_id,
                                 "data": data,
                             })
 
-                        elif stream_name == "sentinel:alerts":
+                        elif stream_name == "hostspectra:alerts":
                             await websocket.send_json({
                                 "type": "alert",
                                 "id": msg_id,
                                 "data": data,
                             })
 
-                        elif stream_name == "sentinel:processes":
+                        elif stream_name == "hostspectra:processes":
                             # Skip process summaries
                             if isinstance(data, dict) and data.get("type") == "process_summary":
                                 continue

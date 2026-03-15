@@ -142,7 +142,7 @@ async def main() -> None:
         while not shutdown_event.is_set():
             try:
                 await redis.set(
-                    "sentinel:heartbeat:collectors",
+                    "hostspectra:heartbeat:collectors",
                     json.dumps({
                         "status": "running",
                         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),

@@ -159,7 +159,7 @@ async def tail_log_file(
     filepath: str,
     redis: Redis,
     state: CollectorState,
-    stream_name: str = "sentinel:logs",
+    stream_name: str = "hostspectra:logs",
     maxlen: int = 50000,
 ) -> None:
     """Continuously tail a log file and push events to Redis.

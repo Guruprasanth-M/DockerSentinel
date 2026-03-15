@@ -6,7 +6,7 @@ version: "0.2"
 # Webhooks fire when policy engine generates alerts with notify: true.
 #
 # Retry Logic: Exponential backoff 1s → 2s → 4s → 8s → 16s → dead letter queue
-# Failed webhooks go to sentinel:webhooks:failed Redis stream (max 1,000 entries).
+# Failed webhooks go to hostspectra:webhooks:failed Redis stream (max 1,000 entries).
 #
 # Payload Signing: When sign_payloads is true, requests include:
 #   X-Sentinel-Signature: sha256=HMAC(webhook_secret, raw_body)

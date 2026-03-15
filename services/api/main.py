@@ -131,7 +131,7 @@ async def _heartbeat_loop(redis: Redis) -> None:
     """Publish API heartbeat to Redis."""
     while True:
         try:
-            await redis.set("sentinel:heartbeat:api", str(time.time()), ex=60)
+            await redis.set("hostspectra:heartbeat:api", str(time.time()), ex=60)
             await asyncio.sleep(30)
         except asyncio.CancelledError:
             break

@@ -63,7 +63,7 @@ async def check_rate_limit_redis(client_ip: str, redis_client) -> bool:
     if redis_client is None:
         return True  # Fail open if Redis unavailable
 
-    key = f"sentinel:ratelimit:{client_ip}"
+    key = f"hostspectra:ratelimit:{client_ip}"
     try:
         current = await redis_client.incr(key)
         if current == 1:
