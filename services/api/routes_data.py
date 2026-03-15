@@ -47,6 +47,7 @@ async def logs(
     redis: Redis = get_redis(request)
 
     events: List[LogEntry] = []
+    seen_ids: set[str] = set()
     next_cursor: Optional[str] = None
     has_filter = bool(level or source)
     # When filters are active, scan more entries per batch to fill the
@@ -75,6 +76,8 @@ async def logs(
             scanned += len(entries)
 
             for entry_id, fields in entries:
+                if entry_id in seen_ids:
+                    continue
                 raw = fields.get("data", "")
                 try:
                     data = json.loads(raw)
@@ -106,6 +109,7 @@ async def logs(
                     message=data.get("message", ""),
                     parsed=parsed,
                 ))
+                seen_ids.add(entry_id)
 
                 if len(events) >= limit:
                     next_cursor = entry_id
@@ -114,8 +118,12 @@ async def logs(
             if len(events) >= limit:
                 break
 
-            # Move cursor to continue scanning
-            cursor_id = entries[-1][0]
+            # Move cursor to continue scanning; guard against no-progress loops
+            # when backends/mocks return non-descending or repeated ranges.
+            next_cursor_id = entries[-1][0]
+            if next_cursor_id == cursor_id:
+                break
+            cursor_id = next_cursor_id
 
             # If no filter, one pass is enough
             if not has_filter:
