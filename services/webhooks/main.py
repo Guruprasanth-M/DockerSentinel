@@ -37,6 +37,11 @@ HEARTBEAT_INTERVAL = 30
 CONSUMER_GROUP = "webhook_service"
 CONSUMER_NAME = f"webhooks_{os.getpid()}"
 HEALTH_FILE = "/tmp/webhooks_healthy"
+REVERSAL_REQUEST_STREAM = "sentinel:reversal_requests"
+REVERSAL_GROUP = "reversal_scheduler"
+REVERSAL_CONSUMER = f"reversal_{os.getpid()}"
+REVERSAL_KEY = "sentinel:reversals"
+REVERSAL_META_PREFIX = "sentinel:reversal_meta"
 
 shutdown_event = asyncio.Event()
 
@@ -274,6 +279,155 @@ async def process_alerts(client: aioredis.Redis, config: WebhookConfig):
             await asyncio.sleep(2)
 
 
+def _meta_key(action_id: str) -> str:
+    return f"{REVERSAL_META_PREFIX}:{action_id}"
+
+
+class ReversalSchedulerWorker:
+    """Runs reversal timing outside actions container (BUG-M11 fix)."""
+
+    def __init__(self, client: aioredis.Redis):
+        self._client = client
+        self._tasks: dict[str, asyncio.Task] = {}
+
+    def _schedule_task(self, action_id: str, target: str, delay_seconds: float) -> None:
+        task = self._tasks.get(action_id)
+        if task and not task.done():
+            return
+        self._tasks[action_id] = asyncio.create_task(
+            self._dispatch_unblock(action_id, target, delay_seconds)
+        )
+
+    async def _dispatch_unblock(self, action_id: str, target: str, delay_seconds: float) -> None:
+        try:
+            await asyncio.sleep(delay_seconds)
+            await self._client.xadd(
+                "sentinel:action_requests",
+                {
+                    "action": "unblock_ip",
+                    "target": target,
+                    "triggered_by": "reversal_scheduler",
+                    "alert_id": "",
+                },
+                maxlen=5000,
+                approximate=True,
+            )
+            await self._client.zrem(REVERSAL_KEY, action_id)
+            await self._client.delete(_meta_key(action_id))
+            logger.info("reversal_dispatched", action_id=action_id, target=target)
+        except asyncio.CancelledError:
+            logger.info("reversal_cancelled", action_id=action_id)
+        except Exception as e:
+            logger.error("reversal_dispatch_failed", action_id=action_id, error=str(e))
+        finally:
+            self._tasks.pop(action_id, None)
+
+    async def schedule(self, action_id: str, target: str, duration_minutes: int) -> None:
+        reversal_at = time.time() + (duration_minutes * 60)
+        await self._client.zadd(REVERSAL_KEY, {action_id: reversal_at})
+        await self._client.hset(
+            _meta_key(action_id),
+            mapping={
+                "action_id": action_id,
+                "target": target,
+                "duration_minutes": str(duration_minutes),
+                "scheduled_at": str(time.time()),
+            },
+        )
+        await self._client.expire(_meta_key(action_id), max(3600, duration_minutes * 120))
+
+        delay_seconds = max(0.0, reversal_at - time.time())
+        self._schedule_task(action_id, target, delay_seconds)
+        logger.info(
+            "reversal_scheduled",
+            action_id=action_id,
+            target=target,
+            duration_minutes=duration_minutes,
+            delay_seconds=int(delay_seconds),
+        )
+
+    async def resume_pending(self) -> None:
+        now = time.time()
+        entries = await self._client.zrangebyscore(REVERSAL_KEY, "-inf", "+inf", withscores=True)
+        for action_id, reversal_at in entries:
+            meta = await self._client.hgetall(_meta_key(action_id))
+            target = meta.get("target", "") if meta else ""
+            if not target:
+                await self._client.zrem(REVERSAL_KEY, action_id)
+                await self._client.delete(_meta_key(action_id))
+                continue
+            delay_seconds = max(0.0, reversal_at - now)
+            self._schedule_task(action_id, target, delay_seconds)
+            logger.info("reversal_resumed", action_id=action_id, remaining_seconds=int(delay_seconds))
+
+    async def shutdown(self) -> None:
+        for task in list(self._tasks.values()):
+            if not task.done():
+                task.cancel()
+        self._tasks.clear()
+
+
+async def process_reversal_requests(client: aioredis.Redis, scheduler: ReversalSchedulerWorker):
+    await ensure_consumer_group(client, REVERSAL_REQUEST_STREAM, REVERSAL_GROUP)
+
+    processed_pending = False
+    while not shutdown_event.is_set():
+        try:
+            if not processed_pending:
+                results = await client.xreadgroup(
+                    REVERSAL_GROUP, REVERSAL_CONSUMER,
+                    {REVERSAL_REQUEST_STREAM: "0"}, count=20, block=1000,
+                )
+                has_msgs = results and any(msgs for _, msgs in results)
+                if not has_msgs:
+                    processed_pending = True
+                    continue
+            else:
+                results = await client.xreadgroup(
+                    REVERSAL_GROUP, REVERSAL_CONSUMER,
+                    {REVERSAL_REQUEST_STREAM: ">"}, count=20, block=5000,
+                )
+
+            if not results:
+                await asyncio.sleep(0.2)
+                continue
+
+            for _, messages in results:
+                for msg_id, data in messages:
+                    try:
+                        action_id = data.get("action_id", "")
+                        action = data.get("action", "")
+                        target = data.get("target", "")
+                        duration_minutes = int(data.get("duration_minutes", "0"))
+
+                        if not action_id or action != "block_ip" or not target or duration_minutes <= 0:
+                            logger.warning(
+                                "invalid_reversal_request",
+                                msg_id=msg_id,
+                                action_id=action_id,
+                                action=action,
+                                target=target,
+                                duration_minutes=duration_minutes,
+                            )
+                            await client.xack(REVERSAL_REQUEST_STREAM, REVERSAL_GROUP, msg_id)
+                            continue
+
+                        await scheduler.schedule(action_id, target, duration_minutes)
+                        await client.xack(REVERSAL_REQUEST_STREAM, REVERSAL_GROUP, msg_id)
+                    except Exception as e:
+                        logger.error("reversal_request_error", msg_id=msg_id, error=str(e))
+                        await asyncio.sleep(0.1)
+
+            await asyncio.sleep(0.05)
+        except aioredis.ConnectionError:
+            logger.error("reversal_scheduler_redis_connection_lost")
+            mark_unhealthy()
+            await asyncio.sleep(5)
+        except Exception as e:
+            logger.error("reversal_scheduler_error", error=str(e))
+            await asyncio.sleep(2)
+
+
 async def main() -> None:
     logger.info("webhook_service_starting", version="v0.2", redis_url=_mask_url(REDIS_URL))
 
@@ -286,11 +440,14 @@ async def main() -> None:
     config.load_host_name()
 
     client = await connect_redis()
+    reversal_scheduler = ReversalSchedulerWorker(client)
+    await reversal_scheduler.resume_pending()
     mark_healthy()
 
     tasks = [
         asyncio.create_task(heartbeat(client)),
         asyncio.create_task(process_alerts(client, config)),
+        asyncio.create_task(process_reversal_requests(client, reversal_scheduler)),
     ]
 
     enabled_count = sum(1 for w in config.webhooks if w.get("enabled", False))
@@ -304,6 +461,7 @@ async def main() -> None:
 
     logger.info("webhook_service_shutting_down")
     mark_unhealthy()
+    await reversal_scheduler.shutdown()
 
     for task in tasks:
         task.cancel()

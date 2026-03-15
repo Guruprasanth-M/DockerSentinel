@@ -699,11 +699,11 @@ build_images() {
 
     cd "${PROJECT_DIR}"
 
-    local services=("redis" "db" "collectors" "ml" "policy" "actions" "webhooks" "api" "dashboard")
+    local services=("redis" "db" "collectors" "ml" "policy" "actions" "webhooks" "api" "dashboard" "autoheal")
     local total=${#services[@]}
     local built=0
     local failed=0
-    local skip_build=("redis" "db")  # Pre-built images, no build needed
+    local skip_build=("redis" "db" "autoheal")  # Pre-built images, no build needed
 
     for svc in "${services[@]}"; do
         built=$((built + 1))

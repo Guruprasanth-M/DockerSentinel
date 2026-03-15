@@ -13,9 +13,8 @@ import structlog
 import yaml
 
 from whitelist import validate_action, is_ip_protected, is_process_protected
-from ip_block import block_ip, list_blocked_ips
+from ip_block import block_ip, unblock_ip, list_blocked_ips
 from process_manager import kill_process, get_process_info
-from reversal import ReversalScheduler
 
 structlog.configure(
     processors=[
@@ -37,6 +36,7 @@ HEARTBEAT_INTERVAL = 30
 CONSUMER_GROUP = "action_engine"
 CONSUMER_NAME = f"actions_{os.getpid()}"
 HEALTH_FILE = "/tmp/actions_healthy"
+REVERSAL_STREAM = "sentinel:reversal_requests"
 
 shutdown_event = asyncio.Event()
 
@@ -156,7 +156,6 @@ async def process_action_requests(
     client: aioredis.Redis,
     config: dict,
     rate_limiter: RateLimiter,
-    reversal_scheduler: ReversalScheduler,
 ):
     stream = "sentinel:action_requests"
     action_stream = "sentinel:actions"
@@ -235,8 +234,18 @@ async def process_action_requests(
 
                                 # Schedule reversal if applicable
                                 if result.get("status") == "blocked" and action == "block_ip":
-                                    await reversal_scheduler.schedule_reversal(
-                                        action_id, action, target, default_block_duration,
+                                    await client.xadd(
+                                        REVERSAL_STREAM,
+                                        {
+                                            "action_id": action_id,
+                                            "action": action,
+                                            "target": target,
+                                            "duration_minutes": str(default_block_duration),
+                                            "scheduled_at": str(time.time()),
+                                            "timestamp": timestamp,
+                                        },
+                                        maxlen=10000,
+                                        approximate=True,
                                     )
 
                         # Publish action result
@@ -308,6 +317,8 @@ async def execute_action(action: str, target: str) -> dict:
         if is_ip_protected(target):
             return {"status": "rejected", "message": f"IP {target} is protected (whitelist)"}
         return await block_ip(target, reason="policy_triggered")
+    elif action == "unblock_ip":
+        return await unblock_ip(target)
     elif action == "kill_process":
         try:
             pid = int(target)
@@ -336,15 +347,13 @@ async def main() -> None:
 
     rate_limiter = RateLimiter(max_per_minute)
     client = await connect_redis()
-    reversal_scheduler = ReversalScheduler(redis_client=client)
-    await reversal_scheduler.resume_pending()
 
     mark_healthy()
 
     tasks = [
         asyncio.create_task(heartbeat(client)),
         asyncio.create_task(
-            process_action_requests(client, config, rate_limiter, reversal_scheduler)
+            process_action_requests(client, config, rate_limiter)
         ),
     ]
 
@@ -358,7 +367,6 @@ async def main() -> None:
 
     logger.info("action_engine_shutting_down")
     mark_unhealthy()
-    await reversal_scheduler.shutdown()
 
     for task in tasks:
         task.cancel()

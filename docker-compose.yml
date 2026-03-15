@@ -258,8 +258,6 @@ services:
           memory: 128M
         reservations:
           memory: 32M
-
-
   # Alert notification delivery
 
   webhooks:
