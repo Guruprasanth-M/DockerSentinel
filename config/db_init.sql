@@ -108,6 +108,25 @@ CREATE TABLE IF NOT EXISTS host_metrics (
 
 CREATE INDEX IF NOT EXISTS idx_host_metrics_created_at ON host_metrics USING brin(created_at);
 
+-- ─── Raw Logs Persistence ────────────────────────────────
+CREATE TABLE IF NOT EXISTS logs (
+    id              SERIAL PRIMARY KEY,
+    timestamp       TIMESTAMPTZ NOT NULL,
+    source          VARCHAR(128) NOT NULL,
+    level           VARCHAR(16) NOT NULL DEFAULT 'info',
+    log_type        VARCHAR(64) DEFAULT 'unknown',
+    message         TEXT,
+    source_ip       VARCHAR(64),
+    log_user        VARCHAR(128),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs USING brin(timestamp);
+CREATE INDEX IF NOT EXISTS idx_logs_source ON logs(source);
+CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level);
+CREATE INDEX IF NOT EXISTS idx_logs_type ON logs(log_type);
+CREATE INDEX IF NOT EXISTS idx_logs_source_ip ON logs(source_ip);
+
 -- ─── Data Retention: Auto-cleanup old rows ────────────────
 -- Retention function: call via pg_cron or external cron daily
 -- Usage: SELECT hostspectra_retention_cleanup();
@@ -116,6 +135,11 @@ RETURNS TABLE(table_name TEXT, rows_deleted BIGINT) AS $$
 DECLARE
     _count BIGINT;
 BEGIN
+    -- Raw logs: keep 30 days
+    DELETE FROM logs WHERE timestamp < NOW() - INTERVAL '30 days';
+    GET DIAGNOSTICS _count = ROW_COUNT;
+    RETURN QUERY SELECT 'logs'::TEXT, _count;
+
     -- Scores: keep 30 days
     DELETE FROM scores WHERE created_at < NOW() - INTERVAL '30 days';
     GET DIAGNOSTICS _count = ROW_COUNT;

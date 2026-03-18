@@ -4,6 +4,7 @@ import json
 import os
 import signal
 import time
+from datetime import datetime
 from pathlib import Path
 
 import asyncpg
@@ -102,6 +103,11 @@ INSERT_ALERT_SQL = """
     ON CONFLICT (alert_id) DO NOTHING
 """
 
+INSERT_LOG_SQL = """
+    INSERT INTO logs (timestamp, source, level, log_type, message, source_ip, log_user)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
+"""
+
 
 async def persist_alert_to_db(db_pool, alert: dict, redis_client) -> None:
     """Insert alert into PostgreSQL. Dead-letters to Redis on failure."""
@@ -125,7 +131,32 @@ async def persist_alert_to_db(db_pool, alert: dict, redis_client) -> None:
     except Exception as e:
         logger.error("alert_db_persist_failed", alert_id=alert.get("alert_id"), error=str(e))
         try:
-            await redis_client.rpush("hostspectra:alerts:failed", json.dumps(alert))
+            await redis_client.xadd(
+                "hostspectra:dead_letter",
+                {"source": "policy_db_alert", "alert_id": alert.get("alert_id", ""), "reason": str(e)[:200],
+                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())},
+                maxlen=1000, approximate=True,
+            )
+        except Exception:
+            pass
+
+
+async def persist_logs_to_db(db_pool, logs_batch: list, redis_client) -> None:
+    """Insert a batch of logs into PostgreSQL."""
+    if db_pool is None or not logs_batch:
+        return
+    try:
+        async with db_pool.acquire() as conn:
+            await conn.executemany(INSERT_LOG_SQL, logs_batch)
+    except Exception as e:
+        logger.error("logs_db_persist_failed", count=len(logs_batch), error=str(e))
+        try:
+            await redis_client.xadd(
+                "hostspectra:dead_letter",
+                {"source": "policy_db_logs", "count": str(len(logs_batch)), "reason": str(e)[:200],
+                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())},
+                maxlen=1000, approximate=True,
+            )
         except Exception:
             pass
 
@@ -281,6 +312,94 @@ async def process_scores(client: aioredis.Redis, engine: PolicyEngine, loader: P
             await asyncio.sleep(2)
 
 
+async def process_logs(client: aioredis.Redis, db_pool: asyncpg.Pool | None):
+    """Consumer for hostspectra:logs to persist into PostgreSQL."""
+    stream = "hostspectra:logs"
+    group = "log_persister"
+    consumer = f"lp_{os.getpid()}"
+
+    if db_pool is None:
+        logger.warning("log_persister_disabled_no_db")
+        return
+
+    await ensure_consumer_group(client, stream, group)
+    logger.info("log_persister_started", stream=stream, consumer=consumer)
+
+    last_id = "0"
+    processed_pending = False
+
+    while not shutdown_event.is_set():
+        try:
+            if not processed_pending:
+                results = await client.xreadgroup(
+                    group, consumer,
+                    {stream: last_id}, count=50, block=1000,
+                )
+                has_msgs = results and any(msgs for _, msgs in results)
+                if not has_msgs:
+                    processed_pending = True
+                    continue
+            else:
+                results = await client.xreadgroup(
+                    group, consumer,
+                    {stream: ">"}, count=50, block=5000,
+                )
+
+            if not results:
+                await asyncio.sleep(1.0)
+                continue
+
+            for stream_name, messages in results:
+                logs_batch = []
+                msg_ids = []
+                for msg_id, data in messages:
+                    try:
+                        # Log data parsing
+                        log_entry = {}
+                        for k, v in data.items():
+                            try:
+                                log_entry[k] = json.loads(v)
+                            except (json.JSONDecodeError, TypeError):
+                                log_entry[k] = v
+
+                        # Convert to tuple for executemany
+                        # (timestamp, source, level, log_type, message, source_ip, log_user)
+                        ts_str = log_entry.get("timestamp", "")
+                        try:
+                            # Parse ISO string
+                            ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                        except Exception:
+                            ts = datetime.now()
+
+                        logs_batch.append((
+                            ts,
+                            log_entry.get("source", "unknown"),
+                            log_entry.get("level", "info"),
+                            log_entry.get("type", "unknown"),
+                            log_entry.get("message", ""),
+                            log_entry.get("source_ip"),
+                            log_entry.get("user"),
+                        ))
+                        msg_ids.append(msg_id)
+                    except Exception as e:
+                        logger.error("log_entry_parse_error", msg_id=msg_id, error=str(e))
+                        await client.xack(stream, group, msg_id)
+
+                if logs_batch:
+                    await persist_logs_to_db(db_pool, logs_batch, client)
+                    for msg_id in msg_ids:
+                        await client.xack(stream, group, msg_id)
+
+            await asyncio.sleep(0.1)
+
+        except aioredis.ConnectionError:
+            logger.error("log_persister_redis_connection_lost")
+            await asyncio.sleep(5)
+        except Exception as e:
+            logger.error("log_persister_error", error=str(e))
+            await asyncio.sleep(2)
+
+
 async def main() -> None:
     logger.info("policy_engine_starting", version="v0.2", redis_url=_mask_url(REDIS_URL), db_url=_mask_url(DB_URL[:60]) if DB_URL else "not_set")
 
@@ -300,6 +419,7 @@ async def main() -> None:
     tasks = [
         asyncio.create_task(heartbeat(client)),
         asyncio.create_task(process_scores(client, engine, loader, db_pool)),
+        asyncio.create_task(process_logs(client, db_pool)),
     ]
 
     logger.info(
